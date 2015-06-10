@@ -1,0 +1,33 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/garyburd/redigo/redis",
+			"repository": "https://github.com/garyburd/redigo",
+			"revision": "3e4727f0ef5938d3a846cdb57e560dba4419e854",
+			"branch": "master",
+			"path": "/redis"
+		},
+		{
+			"importpath": "github.com/namsral/flag",
+			"repository": "https://github.com/namsral/flag",
+			"revision": "bd57b3fc9ada8271ff812ba54f938fe72749d969",
+			"branch": "master",
+			"path": ""
+		},
+		{
+			"importpath": "github.com/garyburd/redigo",
+			"repository": "https://github.com/garyburd/redigo",
+			"revision": "3e4727f0ef5938d3a846cdb57e560dba4419e854",
+			"branch": "master",
+			"path": ""
+		},
+		{
+			"importpath": "github.com/OIT-ADS-Web/basicemail",
+			"repository": "https://github.com/OIT-ADS-Web/basicemail",
+			"revision": "18e4c8aa1339027b214b352432902185581961df",
+			"branch": "master",
+			"path": ""
+		}
+	]
+}
