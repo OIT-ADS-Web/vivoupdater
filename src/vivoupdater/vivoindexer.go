@@ -52,9 +52,7 @@ func (vi VivoIndexer) Index(ctx Context, batches chan map[string]bool) {
 		req.Header.Set("Content-Type", w.FormDataContentType())
 		client := &http.Client{}
 		resp, err := client.Do(req)
-		if resp != nil {
-			defer resp.Body.Close()
-		}
+		resp.Body.Close()
 		if err != nil {
 			ctx.handleError("VivoIndexer: Could not post index request to Vivo", err, true)
 			break
