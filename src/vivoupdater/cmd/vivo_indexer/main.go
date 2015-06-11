@@ -3,6 +3,8 @@ package main
 import (
 	"github.com/namsral/flag"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"time"
 	"vivoupdater"
@@ -39,6 +41,7 @@ func init() {
 }
 
 func main() {
+	go http.ListenAndServe(":8080", nil)
 	version := flag.Bool("version", false, "print build id and exit")
 	flag.Parse()
 	if *version {
