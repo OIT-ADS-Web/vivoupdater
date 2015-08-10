@@ -13,17 +13,21 @@ type VivoIndexer struct {
 	Password string
 }
 
-func (vi VivoIndexer) Index(batch map[string]bool) (bool, error) {
+func (wi VivoIndexer) Name() string {
+	return "VivoIndexer"
+}
+
+func (vi VivoIndexer) Index(batch map[string]bool) (map[string]bool, error) {
 
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 	err := w.WriteField("email", vi.Username)
 	if err != nil {
-		return false, err
+		return batch, err
 	}
 	err = w.WriteField("password", vi.Password)
 	if err != nil {
-		return false, err
+		return batch, err
 	}
 
 	mh := textproto.MIMEHeader{}
@@ -32,7 +36,7 @@ func (vi VivoIndexer) Index(batch map[string]bool) (bool, error) {
 
 	fw, fwerr := w.CreatePart(mh)
 	if fwerr != nil {
-		return false, fwerr
+		return batch, fwerr
 	}
 
 	for u := range batch {
@@ -43,15 +47,15 @@ func (vi VivoIndexer) Index(batch map[string]bool) (bool, error) {
 
 	req, err := http.NewRequest("POST", vi.Url, &buf)
 	if err != nil {
-		return false, err
+		return batch, err
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	resp.Body.Close()
 	if err != nil {
-		return false, err
+		return batch, err
 	}
 	buf.Reset()
-	return true, nil
+	return batch, nil
 }

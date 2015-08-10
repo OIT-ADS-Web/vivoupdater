@@ -17,7 +17,11 @@ type WidgetsUpdateMessage struct {
 	Uris []string `json:"uris"`
 }
 
-func (wi WidgetsIndexer) Index(batch map[string]bool) (bool, error) {
+func (wi WidgetsIndexer) Name() string {
+	return "WidgetsIndexer"
+}
+
+func (wi WidgetsIndexer) Index(batch map[string]bool) (map[string]bool, error) {
 	i := 0
 	uris := make([]string, len(batch))
 	for u := range batch {
@@ -27,7 +31,7 @@ func (wi WidgetsIndexer) Index(batch map[string]bool) (bool, error) {
 	m := WidgetsUpdateMessage{uris}
 	j, err := json.Marshal(m)
 	if err != nil {
-		return false, err
+		return batch, err
 	}
 	var data = url.Values{}
 	data.Set("message", string(j))
@@ -35,14 +39,14 @@ func (wi WidgetsIndexer) Index(batch map[string]bool) (bool, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", wi.Url, strings.NewReader(data.Encode()))
 	if err != nil {
-		return false, err
+		return batch, err
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth(wi.Username, wi.Password)
 	resp, err := client.Do(req)
 	resp.Body.Close()
 	if err != nil {
-		return false, err
+		return batch, err
 	}
-	return true, nil
+	return batch, nil
 }
