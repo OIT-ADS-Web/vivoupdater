@@ -65,7 +65,13 @@ func main() {
 
 	updates := vivoupdater.UpdateSubscriber{redisUrl, redisChannel, maxRedisAttempts, redisRetryInterval}.Subscribe(ctx)
 	batches := vivoupdater.UriBatcher{batchSize, time.Duration(batchTimeout) * time.Second}.Batch(ctx, updates)
-	go vivoupdater.VivoIndexer{vivoIndexerUrl, vivoEmail, vivoPassword}.Index(ctx, batches)
+
+	vivoIndexer := vivoupdater.VivoIndexer{vivoIndexerUrl, vivoEmail, vivoPassword}
+	widgetsIndexer := vivoupdater.WidgetsIndexer{widgetsIndexerUrl, widgetsUser, widgetsPassword}
+	for b := range batches {
+		go vivoupdater.IndexBatch(ctx, vivoIndexer, b)
+		go vivoupdater.IndexBatch(ctx, widgetsIndexer, b)
+	}
 
 	<-ctx.Quit
 	ctx.Logger.Println("Exiting...")
