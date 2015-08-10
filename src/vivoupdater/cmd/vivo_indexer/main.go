@@ -19,6 +19,9 @@ var redisRetryInterval int
 var vivoIndexerUrl string
 var vivoEmail string
 var vivoPassword string
+var widgetsIndexerUrl string
+var widgetsUser string
+var widgetsPassword string
 var batchSize int
 var batchTimeout int
 var notificationSmtp string
@@ -33,6 +36,9 @@ func init() {
 	flag.StringVar(&vivoIndexerUrl, "vivo_indexer_url", "http://localhost:8080/searchService/updateUrisInSearch", "full url of the incremental indexing service")
 	flag.StringVar(&vivoEmail, "vivo_email", "", "email address of vivo user authorized to re-index")
 	flag.StringVar(&vivoPassword, "vivo_password", "", "password for vivo user authorized to re-index")
+	flag.StringVar(&widgetsIndexerUrl, "widgets_indexer_url", "http://localhost:8080/widgets/updates/uris", "full url of the incremental indexing service")
+	flag.StringVar(&widgetsUser, "widgets_user", "", "email address of vivo user authorized to re-index")
+	flag.StringVar(&widgetsPassword, "widgets_password", "", "password for vivo user authorized to re-index")
 	flag.IntVar(&batchSize, "batch_size", 200, "maximum number of uris to send to the indexer at one time")
 	flag.IntVar(&batchTimeout, "batch_timeout", 10, "maximum number of seconds to wait before sending a partial batch")
 	flag.StringVar(&notificationSmtp, "notification_smtp", "", "smtp server to use for notifications")
