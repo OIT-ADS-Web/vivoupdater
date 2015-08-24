@@ -41,7 +41,7 @@ func init() {
 }
 
 func main() {
-	go http.ListenAndServe(":8080", nil)
+	go http.ListenAndServe(":8484", nil)
 	version := flag.Bool("version", false, "print build id and exit")
 	flag.Parse()
 	if *version {
