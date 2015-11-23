@@ -11,4 +11,5 @@ func IndexBatch(ctx Context, i BatchIndexer, b map[string]bool) {
 		ctx.handleError("Indexing Error", err, true)
 	}
 	ctx.Logger.Printf("%v uris indexed by %s", len(ib), i.Name())
+	ctx.Logger.Printf("%v", ib)
 }
