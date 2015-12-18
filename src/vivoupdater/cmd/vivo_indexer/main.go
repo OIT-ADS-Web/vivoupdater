@@ -12,16 +12,23 @@ import (
 
 var Build string
 
+// redis
 var redisUrl string
 var redisChannel string
 var maxRedisAttempts int
 var redisRetryInterval int
+
+// vivo
 var vivoIndexerUrl string
 var vivoEmail string
 var vivoPassword string
-var widgetsIndexerUrl string
+
+// widgets
+var widgetsIndexerBaseUrl string
 var widgetsUser string
 var widgetsPassword string
+
+// misc
 var batchSize int
 var batchTimeout int
 var notificationSmtp string
@@ -36,7 +43,9 @@ func init() {
 	flag.StringVar(&vivoIndexerUrl, "vivo_indexer_url", "http://localhost:8080/searchService/updateUrisInSearch", "full url of the incremental indexing service")
 	flag.StringVar(&vivoEmail, "vivo_email", "", "email address of vivo user authorized to re-index")
 	flag.StringVar(&vivoPassword, "vivo_password", "", "password for vivo user authorized to re-index")
-	flag.StringVar(&widgetsIndexerUrl, "widgets_indexer_url", "http://localhost:8080/widgets/updates/uris", "full url of the incremental indexing service")
+	
+	flag.StringVar(&widgetsIndexerBaseUrl, "widgets_indexer_base_url", "http://localhost:8080/widgets/updates", "base url of the incremental indexing service -  must be expanded in code to differentiate /person vs. /org")
+	
 	flag.StringVar(&widgetsUser, "widgets_user", "", "email address of vivo user authorized to re-index")
 	flag.StringVar(&widgetsPassword, "widgets_password", "", "password for vivo user authorized to re-index")
 	flag.IntVar(&batchSize, "batch_size", 200, "maximum number of uris to send to the indexer at one time")
@@ -67,7 +76,8 @@ func main() {
 	batches := vivoupdater.UriBatcher{batchSize, time.Duration(batchTimeout) * time.Second}.Batch(ctx, updates)
 
 	vivoIndexer := vivoupdater.VivoIndexer{vivoIndexerUrl, vivoEmail, vivoPassword}
-	widgetsIndexer := vivoupdater.WidgetsIndexer{widgetsIndexerUrl, widgetsUser, widgetsPassword}
+	widgetsIndexer := vivoupdater.WidgetsIndexer{widgetsIndexerBaseUrl, widgetsUser, widgetsPassword}
+
 	for b := range batches {
 		go vivoupdater.IndexBatch(ctx, vivoIndexer, b)
 		go vivoupdater.IndexBatch(ctx, widgetsIndexer, b)

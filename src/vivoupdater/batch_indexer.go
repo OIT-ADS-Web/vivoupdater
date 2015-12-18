@@ -1,8 +1,10 @@
 package vivoupdater
 
+// could filter here with extra --- filter
 type BatchIndexer interface {
 	Name() string
 	Index(b map[string]bool) (map[string]bool, error)
+//        Filter(b map[string]bool) (map[string]bool, error)
 }
 
 func IndexBatch(ctx Context, i BatchIndexer, b map[string]bool) {

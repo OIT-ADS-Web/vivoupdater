@@ -17,6 +17,12 @@ func (wi VivoIndexer) Name() string {
 	return "VivoIndexer"
 }
 
+// FIXME: is it really necessasary to implement, since we don't use?
+//func (wi VivoIndexer) Filter (batch map[string]bool) (map[string]bool, error) {
+//	return batch, nil
+//}
+
+
 func (vi VivoIndexer) Index(batch map[string]bool) (map[string]bool, error) {
 
 	var buf bytes.Buffer
