@@ -56,6 +56,8 @@ func TestWidgetsPost(t *testing.T) {
 		    t.Errorf("expected http://scholars/individual/per0000000 to POST to /people/uris")
 		    t.Errorf("OR expected http://scholars/individual/org0000000 to POST to /organizations/uris")
 		    t.Errorf("not %s to %s", sortUris, r.URL.Path)
+		 } else {
+		   t.Logf("%s will route to %s", sortUris, r.URL.Path)
 		 }
 
 	}))
