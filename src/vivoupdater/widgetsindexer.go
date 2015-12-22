@@ -42,7 +42,7 @@ func (wi WidgetsIndexer) Name() string {
 // https://scholars.duke.edu/individual/per3336942
 // https://scholars.duke.edu/individual/org50344699
 //
-func (wbi *WidgetsBatchIndexer) Snatch(u string) {
+func (wbi *WidgetsBatchIndexer) Gather(u string) {
     
     if wbi.Regex.MatchString(u) {
       wbi.Uris = append(wbi.Uris, u)
@@ -85,16 +85,15 @@ func (wbi WidgetsBatchIndexer) IndexUris() error {
 
 
 func (wi WidgetsIndexer) Index(batch map[string]bool) (map[string]bool, error) {
-	
-        perRegx := regexp.MustCompile(`individual/per[\d]*`)
-	orgRegx := regexp.MustCompile(`individual/org[\d]*`)
+        perRegx := regexp.MustCompile(`.*individual/per[^_]*`)
+	orgRegx := regexp.MustCompile(`.*individual/org*`)
 
 	widgetsPeopleIndexer := NewWidgetsBatchIndexer(wi, "/people/uris", perRegx) //make([]string, 0)}
 	widgetsOrganizationIndexer := NewWidgetsBatchIndexer(wi, "/organizations/uris", orgRegx) // make([]string, 0)}
 
 	for u := range batch {
-		widgetsPeopleIndexer.Snatch(u)
-		widgetsOrganizationIndexer.Snatch(u)
+		widgetsPeopleIndexer.Gather(u)
+		widgetsOrganizationIndexer.Gather(u)
 	}
 
 	
