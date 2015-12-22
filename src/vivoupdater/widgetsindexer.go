@@ -50,7 +50,13 @@ func (wbi *WidgetsBatchIndexer) Gather(u string) {
 }
 
 func (wbi WidgetsBatchIndexer) IndexUris() error {
+      size := len(wbi.Uris)
+      if !(size <= 0) {
+	return nil
+      }
+
       m := WidgetsUpdateMessage{wbi.Uris}
+
 
       j, err := json.Marshal(m)
       if err != nil {
@@ -88,8 +94,8 @@ func (wi WidgetsIndexer) Index(batch map[string]bool) (map[string]bool, error) {
         perRegx := regexp.MustCompile(`.*individual/per[^_]*`)
 	orgRegx := regexp.MustCompile(`.*individual/org*`)
 
-	widgetsPeopleIndexer := NewWidgetsBatchIndexer(wi, "/people/uris", perRegx) //make([]string, 0)}
-	widgetsOrganizationIndexer := NewWidgetsBatchIndexer(wi, "/organizations/uris", orgRegx) // make([]string, 0)}
+	widgetsPeopleIndexer := NewWidgetsBatchIndexer(wi, "/people/uris", perRegx)
+	widgetsOrganizationIndexer := NewWidgetsBatchIndexer(wi, "/organizations/uris", orgRegx)
 
 	for u := range batch {
 		widgetsPeopleIndexer.Gather(u)
