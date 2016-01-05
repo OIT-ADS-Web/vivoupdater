@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"regexp"
-	//"log"
+	"log"
 )
 
 type WidgetsIndexer struct {
@@ -43,20 +43,19 @@ func (wi WidgetsIndexer) Name() string {
 // https://scholars.duke.edu/individual/org50344699
 //
 func (wbi *WidgetsBatchIndexer) Gather(u string) {
-    
     if wbi.Regex.MatchString(u) {
       wbi.Uris = append(wbi.Uris, u)
     }
 }
 
-func (wbi WidgetsBatchIndexer) IndexUris() error {
+func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
       size := len(wbi.Uris)
-      if !(size <= 0) {
+      
+      if (size <= 0) {
 	return nil
       }
 
       m := WidgetsUpdateMessage{wbi.Uris}
-
 
       j, err := json.Marshal(m)
       if err != nil {
@@ -66,21 +65,27 @@ func (wbi WidgetsBatchIndexer) IndexUris() error {
       var data = url.Values{}
       data.Set("message", string(j))
       
+     
+      logger.Printf("****WIDGETS INDEXER POSTING to %#v****", wbi.Indexer.Url+wbi.Suffix)
+     
+      for _, uri := range wbi.Uris {
+      	logger.Printf(":= %#v\n", uri)
+      }
 
       client := &http.Client{}
-  
       req, err := http.NewRequest("POST", wbi.Indexer.Url+wbi.Suffix, strings.NewReader(data.Encode()))
       if err != nil {
 	return err
       }
       
-
       req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
       req.SetBasicAuth(wbi.Indexer.Username, wbi.Indexer.Password)
       
+       
       resp, err := client.Do(req)
- 
+
       resp.Body.Close()
+      
 
       if err != nil {
 	return err
@@ -90,8 +95,8 @@ func (wbi WidgetsBatchIndexer) IndexUris() error {
 }
 
 
-func (wi WidgetsIndexer) Index(batch map[string]bool) (map[string]bool, error) {
-        perRegx := regexp.MustCompile(`.*individual/per[^_]*`)
+func (wi WidgetsIndexer) Index(logger *log.Logger, batch map[string]bool) (map[string]bool, error) {
+	perRegx := regexp.MustCompile(`.*individual/per*`)
 	orgRegx := regexp.MustCompile(`.*individual/org*`)
 
 	widgetsPeopleIndexer := NewWidgetsBatchIndexer(wi, "/people/uris", perRegx)
@@ -102,20 +107,18 @@ func (wi WidgetsIndexer) Index(batch map[string]bool) (map[string]bool, error) {
 		widgetsOrganizationIndexer.Gather(u)
 	}
 
-	
-	err := widgetsPeopleIndexer.IndexUris()
+
+	err := widgetsPeopleIndexer.IndexUris(logger)
 
 	if err != nil {
 	  return batch, err
 	}
 
-	
-	err = widgetsOrganizationIndexer.IndexUris()
+	err = widgetsOrganizationIndexer.IndexUris(logger)
 
 	if err != nil {
 	  return batch, err
 	}
         
-
 	return batch, nil
 }

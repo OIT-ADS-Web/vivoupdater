@@ -1,12 +1,14 @@
 package vivoupdater
 
+import ("log")
+
 type BatchIndexer interface {
 	Name() string
-	Index(b map[string]bool) (map[string]bool, error)
+	Index(logger *log.Logger, b map[string]bool) (map[string]bool, error)
 }
 
 func IndexBatch(ctx Context, i BatchIndexer, b map[string]bool) {
-	ib, err := i.Index(b)
+	ib, err := i.Index(ctx.Logger, b)
 	if err != nil {
 		ctx.handleError("Indexing Error", err, true)
 	}

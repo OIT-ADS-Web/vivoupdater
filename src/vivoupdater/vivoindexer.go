@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"log"
 )
 
 type VivoIndexer struct {
@@ -17,13 +18,8 @@ func (wi VivoIndexer) Name() string {
 	return "VivoIndexer"
 }
 
-// FIXME: is it really necessasary to implement, since we don't use?
-//func (wi VivoIndexer) Filter (batch map[string]bool) (map[string]bool, error) {
-//	return batch, nil
-//}
 
-
-func (vi VivoIndexer) Index(batch map[string]bool) (map[string]bool, error) {
+func (vi VivoIndexer) Index(logger *log.Logger, batch map[string]bool) (map[string]bool, error) {
 
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
