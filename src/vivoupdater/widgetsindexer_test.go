@@ -75,5 +75,5 @@ func TestWidgetsPost(t *testing.T) {
 		Username: "testuser",
 		Password: "testpassword"}
 
-	wi.Index(logger, b)
+	wi.Index(b, logger)
 }

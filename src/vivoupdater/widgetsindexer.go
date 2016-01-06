@@ -66,10 +66,10 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
       data.Set("message", string(j))
       
      
-      logger.Printf("****WIDGETS INDEXER POSTING to %#v****", wbi.Indexer.Url+wbi.Suffix)
+      logger.Printf("%#v", wbi.Indexer.Url+wbi.Suffix)
      
       for _, uri := range wbi.Uris {
-      	logger.Printf(":= %#v\n", uri)
+      	logger.Printf("->%#v\n", uri)
       }
 
       client := &http.Client{}
@@ -94,8 +94,17 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
       return nil
 }
 
+/*
+func (wi WidgetsIndexer) Index(batch map[string]bool) (map[string]bool, error) {
 
-func (wi WidgetsIndexer) Index(logger *log.Logger, batch map[string]bool) (map[string]bool, error) {
+    logger := log.New(os.Stdout, "", log.LstdFlags)
+
+    return wi.IndexLog(batch, logger)
+
+}
+*/
+
+func (wi WidgetsIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
 	perRegx := regexp.MustCompile(`.*individual/per*`)
 	orgRegx := regexp.MustCompile(`.*individual/org*`)
 
