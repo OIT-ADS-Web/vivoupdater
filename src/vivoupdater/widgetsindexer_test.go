@@ -3,14 +3,15 @@ package vivoupdater_test
 import (
 	"encoding/base64"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sort"
 	"testing"
 	"vivoupdater"
-	"log"
-	"os"
 )
+
 /*
 
 real world example uris:
@@ -27,13 +28,13 @@ func TestWidgetsPost(t *testing.T) {
 	// something it doesn't expect - should ignore, right?
 	b["http://domain.com/individual/gra000000"] = true
 
-        logger := log.New(os.Stdout, "", log.LstdFlags)
+	logger := log.New(os.Stdout, "", log.LstdFlags)
 
 	// FIXME: the test should really accumulate all requests over time, and compare
 	// against expected, but I'm not sure how to do that
 	// all_requests := make(map[string]string)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		
+
 		r.ParseForm()
 		m := r.Form.Get("message")
 		if m == "" {
@@ -48,28 +49,27 @@ func TestWidgetsPost(t *testing.T) {
 		if a != exp_a {
 			t.Errorf("expected Authorization header to be: %s\ngot: %s", exp_a, a)
 		}
-	        	
+
 		var wum vivoupdater.WidgetsUpdateMessage
 		json.Unmarshal([]byte(m), &wum)
 
 		var sortUris sort.StringSlice = wum.Uris
 		sortUris.Sort()
-                 
-		if !((sortUris[0] == "http://scholars/individual/per0000000" && r.URL.Path == "/people/uris")  || 
-		    (sortUris[0] == "http://scholars/individual/org0000000" && r.URL.Path == "/organizations/uris")) {
-		    
-		    t.Errorf("expected http://scholars/individual/per0000000 to POST to /people/uris")
-		    t.Errorf("OR expected http://scholars/individual/org0000000 to POST to /organizations/uris")
-		    t.Errorf("not %s to %s", sortUris, r.URL.Path)
-		 
-		  } else {
-		   t.Logf("%s will route to %s", sortUris, r.URL.Path)
-		 }
-	      
+
+		if !((sortUris[0] == "http://scholars/individual/per0000000" && r.URL.Path == "/people/uris") ||
+			(sortUris[0] == "http://scholars/individual/org0000000" && r.URL.Path == "/organizations/uris")) {
+
+			t.Errorf("expected http://scholars/individual/per0000000 to POST to /people/uris")
+			t.Errorf("OR expected http://scholars/individual/org0000000 to POST to /organizations/uris")
+			t.Errorf("not %s to %s", sortUris, r.URL.Path)
+
+		} else {
+			t.Logf("%s will route to %s", sortUris, r.URL.Path)
+		}
 
 	}))
 	defer ts.Close()
-        
+
 	wi := vivoupdater.WidgetsIndexer{
 		Url:      ts.URL,
 		Username: "testuser",
