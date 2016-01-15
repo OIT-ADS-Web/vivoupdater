@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/OIT-ADS-Web/vivoupdater"
 	"github.com/namsral/flag"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"time"
-	"vivoupdater"
 )
 
 var Build string
