@@ -3,32 +3,42 @@ package vivoupdater_test
 import (
 	"encoding/base64"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sort"
 	"testing"
 	"vivoupdater"
 )
 
+/*
+
+real world example uris:
+
+https://scholars.duke.edu/individual/per3336942
+https://scholars.duke.edu/individual/org50344699
+*/
+
 func TestWidgetsPost(t *testing.T) {
-
 	b := make(map[string]bool)
-	b["http://a_uri"] = true
-	b["http://b_uri"] = true
 
+	b["http://scholars/individual/per0000000"] = true
+	b["http://scholars/individual/org0000000"] = true
+	// something it doesn't expect - should ignore, right?
+	b["http://domain.com/individual/gra000000"] = true
+
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+
+	// FIXME: the test should really accumulate all requests over time, and compare
+	// against expected, but I'm not sure how to do that
+	// all_requests := make(map[string]string)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
 		r.ParseForm()
 		m := r.Form.Get("message")
 		if m == "" {
 			t.Fatal("message parameter not found")
-		}
-
-		var wum vivoupdater.WidgetsUpdateMessage
-		json.Unmarshal([]byte(m), &wum)
-		var sortUris sort.StringSlice = wum.Uris
-		sortUris.Sort()
-		if len(sortUris) != 2 || sortUris[0] != "http://a_uri" || sortUris[1] != "http://b_uri" {
-			t.Errorf("expected 2 uris: http://a_uri, http://b_uri\ngot: %s", sortUris)
 		}
 
 		a := r.Header["Authorization"][0]
@@ -40,6 +50,23 @@ func TestWidgetsPost(t *testing.T) {
 			t.Errorf("expected Authorization header to be: %s\ngot: %s", exp_a, a)
 		}
 
+		var wum vivoupdater.WidgetsUpdateMessage
+		json.Unmarshal([]byte(m), &wum)
+
+		var sortUris sort.StringSlice = wum.Uris
+		sortUris.Sort()
+
+		if !((sortUris[0] == "http://scholars/individual/per0000000" && r.URL.Path == "/people/uris") ||
+			(sortUris[0] == "http://scholars/individual/org0000000" && r.URL.Path == "/organizations/uris")) {
+
+			t.Errorf("expected http://scholars/individual/per0000000 to POST to /people/uris")
+			t.Errorf("OR expected http://scholars/individual/org0000000 to POST to /organizations/uris")
+			t.Errorf("not %s to %s", sortUris, r.URL.Path)
+
+		} else {
+			t.Logf("%s will route to %s", sortUris, r.URL.Path)
+		}
+
 	}))
 	defer ts.Close()
 
@@ -48,5 +75,5 @@ func TestWidgetsPost(t *testing.T) {
 		Username: "testuser",
 		Password: "testpassword"}
 
-	wi.Index(b)
+	wi.Index(b, logger)
 }

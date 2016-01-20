@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"log"
 )
 
 type VivoIndexer struct {
@@ -17,7 +18,8 @@ func (wi VivoIndexer) Name() string {
 	return "VivoIndexer"
 }
 
-func (vi VivoIndexer) Index(batch map[string]bool) (map[string]bool, error) {
+
+func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
 
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
