@@ -9,7 +9,7 @@ Dependencies are managed with [Glide](https://github.com/Masterminds/glide)
 To get started:
 
      go get github.com/OIT-ADS-Web/vivoupdater
-     cd $GOPATH/github.com/OIT-ADS-Web/vivoupdater
+     cd $GOPATH/src/github.com/OIT-ADS-Web/vivoupdater
      glide up
      go install github.com/OIT-ADS-Web/vivoupdater...
 
