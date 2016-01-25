@@ -2,11 +2,11 @@ package vivoupdater
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/url"
-	"strings"
 	"regexp"
-	"log"
+	"strings"
 )
 
 type WidgetsIndexer struct {
@@ -16,15 +16,15 @@ type WidgetsIndexer struct {
 }
 
 type WidgetsBatchIndexer struct {
-      Indexer WidgetsIndexer
-      Suffix string
-      Regex *regexp.Regexp
-      Uris []string
+	Indexer WidgetsIndexer
+	Suffix  string
+	Regex   *regexp.Regexp
+	Uris    []string
 }
 
-func NewWidgetsBatchIndexer (wi WidgetsIndexer, suffix string, regex *regexp.Regexp) *WidgetsBatchIndexer {
-  arr := make([]string, 0)
-  return &WidgetsBatchIndexer{wi, suffix, regex, arr}
+func NewWidgetsBatchIndexer(wi WidgetsIndexer, suffix string, regex *regexp.Regexp) *WidgetsBatchIndexer {
+	arr := make([]string, 0)
+	return &WidgetsBatchIndexer{wi, suffix, regex, arr}
 }
 
 type WidgetsUpdateMessage struct {
@@ -43,55 +43,52 @@ func (wi WidgetsIndexer) Name() string {
 // https://scholars.duke.edu/individual/org50344699
 //
 func (wbi *WidgetsBatchIndexer) Gather(u string) {
-    if wbi.Regex.MatchString(u) {
-      wbi.Uris = append(wbi.Uris, u)
-    }
+	if wbi.Regex.MatchString(u) {
+		wbi.Uris = append(wbi.Uris, u)
+	}
 }
 
 func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
-      size := len(wbi.Uris)
-      
-      if (size <= 0) {
+	size := len(wbi.Uris)
+
+	if size <= 0 {
+		return nil
+	}
+
+	m := WidgetsUpdateMessage{wbi.Uris}
+
+	j, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+
+	var data = url.Values{}
+	data.Set("message", string(j))
+
+	logger.Printf("%#v", wbi.Indexer.Url+wbi.Suffix)
+
+	for _, uri := range wbi.Uris {
+		logger.Printf("->%#v\n", uri)
+	}
+
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", wbi.Indexer.Url+wbi.Suffix, strings.NewReader(data.Encode()))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(wbi.Indexer.Username, wbi.Indexer.Password)
+
+	resp, err := client.Do(req)
+
+	resp.Body.Close()
+
+	if err != nil {
+		return err
+	}
+
 	return nil
-      }
-
-      m := WidgetsUpdateMessage{wbi.Uris}
-
-      j, err := json.Marshal(m)
-      if err != nil {
-	return err
-      }
-  
-      var data = url.Values{}
-      data.Set("message", string(j))
-      
-     
-      logger.Printf("%#v", wbi.Indexer.Url+wbi.Suffix)
-     
-      for _, uri := range wbi.Uris {
-      	logger.Printf("->%#v\n", uri)
-      }
-
-      client := &http.Client{}
-      req, err := http.NewRequest("POST", wbi.Indexer.Url+wbi.Suffix, strings.NewReader(data.Encode()))
-      if err != nil {
-	return err
-      }
-      
-      req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-      req.SetBasicAuth(wbi.Indexer.Username, wbi.Indexer.Password)
-      
-       
-      resp, err := client.Do(req)
-
-      resp.Body.Close()
-      
-
-      if err != nil {
-	return err
-      }
-      
-      return nil
 }
 
 /*
@@ -116,18 +113,17 @@ func (wi WidgetsIndexer) Index(batch map[string]bool, logger *log.Logger) (map[s
 		widgetsOrganizationIndexer.Gather(u)
 	}
 
-
 	err := widgetsPeopleIndexer.IndexUris(logger)
 
 	if err != nil {
-	  return batch, err
+		return batch, err
 	}
 
 	err = widgetsOrganizationIndexer.IndexUris(logger)
 
 	if err != nil {
-	  return batch, err
+		return batch, err
 	}
-        
+
 	return batch, nil
 }
