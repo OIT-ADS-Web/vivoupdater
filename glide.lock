@@ -1,0 +1,12 @@
+hash: 6618ca70e38d4fd39a6bbc57a15ce1ec08059043b47980d415e881190510ab1c
+updated: 2016-01-15T11:28:37.208811339-05:00
+imports:
+- name: github.com/garyburd/redigo
+  version: 836b6e58b3358112c8291565d01c35b8764070d7
+  subpackages:
+  - /redis
+- name: github.com/namsral/flag
+  version: 881a43080604bcf99ab1118a814d1cb2c268fc36
+- name: github.com/OIT-ADS-Web/basicemail
+  version: 18e4c8aa1339027b214b352432902185581961df
+devImports: []

@@ -3,13 +3,13 @@ package vivoupdater_test
 import (
 	"encoding/base64"
 	"encoding/json"
+	"github.com/OIT-ADS-Web/vivoupdater"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"sort"
 	"testing"
-	"vivoupdater"
 )
 
 /*
