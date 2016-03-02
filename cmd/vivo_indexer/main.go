@@ -70,7 +70,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	//var log = log.New()
 	var log = log.New(os.Stdout, "", log.LstdFlags)
 
 	log.SetOutput(&lumberjack.Logger{
