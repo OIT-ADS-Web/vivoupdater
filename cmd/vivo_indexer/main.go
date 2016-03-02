@@ -38,6 +38,9 @@ var notificationEmail string
 
 // logging
 var logFile string
+var logMaxSize int
+var logMaxBackups int
+var logMaxAge int
 
 func init() {
 	flag.StringVar(&redisUrl, "redis_url", "localhost:6379", "host:port of the redis instance")
@@ -59,7 +62,10 @@ func init() {
 	flag.StringVar(&notificationEmail, "notification_email", "", "email address to use for notifications")
 
 	flag.StringVar(&logFile, "log_file", "vivoupdater.log", "rolling log file location")
-}
+        flag.IntVar(&logMaxSize, "log_max_size", 500, "max size (in mb) of log file")
+	flag.IntVar(&logMaxBackups, "log_max_backups", 10, "maximum number of old log files to retain")
+	flag.IntVar(&logMaxAge, "log_max_age", 28, "maximum number of days to keep log file")
+      }
 
 func main() {
 	go http.ListenAndServe(":8484", nil)
@@ -70,14 +76,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	//var log = log.New()
 	var log = log.New(os.Stdout, "", log.LstdFlags)
 
 	log.SetOutput(&lumberjack.Logger{
 		Filename:   logFile,
-		MaxSize:    500, // megabytes
-		MaxBackups: 3,
-		MaxAge:     28, //days
+		MaxSize:    logMaxSize,
+		MaxBackups: logMaxBackups,
+		MaxAge:     logMaxAge,
 	})
 
 	ctx := vivoupdater.Context{
