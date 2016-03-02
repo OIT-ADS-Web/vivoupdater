@@ -5,3 +5,5 @@ import:
   subpackages:
   - /redis
 - package: github.com/namsral/flag
+- package: gopkg.in/natefinch/lumberjack.v2
+
