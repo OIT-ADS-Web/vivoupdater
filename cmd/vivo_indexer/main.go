@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/OIT-ADS-Web/vivoupdater"
 	"github.com/namsral/flag"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -35,6 +36,12 @@ var notificationSmtp string
 var notificationFrom string
 var notificationEmail string
 
+// logging
+var logFile string
+var logMaxSize int
+var logMaxBackups int
+var logMaxAge int
+
 func init() {
 	flag.StringVar(&redisUrl, "redis_url", "localhost:6379", "host:port of the redis instance")
 	flag.StringVar(&redisChannel, "redis_channel", "development", "name of the redis channel to subscribe to")
@@ -53,7 +60,12 @@ func init() {
 	flag.StringVar(&notificationSmtp, "notification_smtp", "", "smtp server to use for notifications")
 	flag.StringVar(&notificationFrom, "notification_from", "", "from address to use for notifications")
 	flag.StringVar(&notificationEmail, "notification_email", "", "email address to use for notifications")
-}
+
+	flag.StringVar(&logFile, "log_file", "vivoupdater.log", "rolling log file location")
+        flag.IntVar(&logMaxSize, "log_max_size", 500, "max size (in mb) of log file")
+	flag.IntVar(&logMaxBackups, "log_max_backups", 10, "maximum number of old log files to retain")
+	flag.IntVar(&logMaxAge, "log_max_age", 28, "maximum number of days to keep log file")
+      }
 
 func main() {
 	go http.ListenAndServe(":8484", nil)
@@ -64,12 +76,21 @@ func main() {
 		os.Exit(0)
 	}
 
+	var log = log.New(os.Stdout, "", log.LstdFlags)
+
+	log.SetOutput(&lumberjack.Logger{
+		Filename:   logFile,
+		MaxSize:    logMaxSize,
+		MaxBackups: logMaxBackups,
+		MaxAge:     logMaxAge,
+	})
+
 	ctx := vivoupdater.Context{
 		Notice: vivoupdater.Notification{
 			Smtp: notificationSmtp,
 			From: notificationFrom,
 			To:   []string{notificationEmail}},
-		Logger: log.New(os.Stdout, "", log.LstdFlags),
+		Logger: log,
 		Quit:   make(chan bool)}
 
 	updates := vivoupdater.UpdateSubscriber{redisUrl, redisChannel, maxRedisAttempts, redisRetryInterval}.Subscribe(ctx)
