@@ -91,19 +91,10 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
 	return nil
 }
 
-/*
-func (wi WidgetsIndexer) Index(batch map[string]bool) (map[string]bool, error) {
-
-    logger := log.New(os.Stdout, "", log.LstdFlags)
-
-    return wi.IndexLog(batch, logger)
-
-}
-*/
-
 func (wi WidgetsIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
-	perRegx := regexp.MustCompile(`.*individual/per*`)
-	orgRegx := regexp.MustCompile(`.*individual/org*`)
+	perRegx := regexp.MustCompile(`.*individual/per[0-9]{7}`)
+	orgRegx := regexp.MustCompile(`.*individual/org[0-9]{8}`)
+
 
 	widgetsPeopleIndexer := NewWidgetsBatchIndexer(wi, "/people/uris", perRegx)
 	widgetsOrganizationIndexer := NewWidgetsBatchIndexer(wi, "/organizations/uris", orgRegx)
