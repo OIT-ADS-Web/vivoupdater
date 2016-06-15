@@ -23,10 +23,16 @@ https://scholars.duke.edu/individual/org50344699
 func TestWidgetsPost(t *testing.T) {
 	b := make(map[string]bool)
 
-	b["http://scholars/individual/per0000000"] = true
-	b["http://scholars/individual/org0000000"] = true
-	// something it doesn't expect - should ignore, right?
-	b["http://domain.com/individual/gra000000"] = true
+	// NOTE: 7 digits for person, 8 digits for org
+	b["http://scholars/individual/per0000001"] = true
+	b["http://scholars/individual/org00000001"] = true
+
+	b["http://domain.com/individual/gra0000001"] = true
+	b["http://domain.com/individual/per_addr000000"] = true
+
+	b["http://domain.com/individual/per1"] = true
+	b["http://domain.com/individual/org1"] = true
+
 
 	logger := log.New(os.Stdout, "", log.LstdFlags)
 
@@ -56,11 +62,16 @@ func TestWidgetsPost(t *testing.T) {
 		var sortUris sort.StringSlice = wum.Uris
 		sortUris.Sort()
 
-		if !((sortUris[0] == "http://scholars/individual/per0000000" && r.URL.Path == "/people/uris") ||
-			(sortUris[0] == "http://scholars/individual/org0000000" && r.URL.Path == "/organizations/uris")) {
+		if (sortUris[0] == "http://domain.com/individual/per1" || sortUris[0] == "http://domain.com/individual/org1" ||
+		    sortUris[0] == "http://domain.com/indivudal/gra0000001" || sortUris[0] == "http://domain.com/individual/per_addr000000") {
+			t.Errorf("Not supposed to allow %s", sortUris)
+		}
 
-			t.Errorf("expected http://scholars/individual/per0000000 to POST to /people/uris")
-			t.Errorf("OR expected http://scholars/individual/org0000000 to POST to /organizations/uris")
+		if !((sortUris[0] == "http://scholars/individual/per0000001" && r.URL.Path == "/people/uris") ||
+			(sortUris[0] == "http://scholars/individual/org00000001" && r.URL.Path == "/organizations/uris")) {
+
+			t.Errorf("expected http://scholars/individual/per0000001 to POST to /people/uris")
+			t.Errorf("OR expected http://scholars/individual/org00000001 to POST to /organizations/uris")
 			t.Errorf("not %s to %s", sortUris, r.URL.Path)
 
 		} else {
