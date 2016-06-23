@@ -27,6 +27,9 @@ func TestWidgetsPost(t *testing.T) {
 	b["http://scholars/individual/per0000001"] = true
 	b["http://scholars/individual/org00000001"] = true
 
+	b["http://scholars/individual/pernet1"] = true
+	b["http://scholars/individual/pernet2"] = true
+
 	b["http://domain.com/individual/gra0000001"] = true
 	b["http://domain.com/individual/per_addr000000"] = true
 
@@ -68,7 +71,9 @@ func TestWidgetsPost(t *testing.T) {
 		}
 
 		if !((sortUris[0] == "http://scholars/individual/per0000001" && r.URL.Path == "/people/uris") ||
-			(sortUris[0] == "http://scholars/individual/org00000001" && r.URL.Path == "/organizations/uris")) {
+			(sortUris[0] == "http://scholars/individual/org00000001" && r.URL.Path == "/organizations/uris")) ||
+			((sortUris[0] == "http://scholars/individual/pernet1" && r.URL.Path == "/people/uris") ||
+		         (sortUris[0] == "http://scholars/individual/pernet2" && r.URL.Path == "/people/uris")) {
 
 			t.Errorf("expected http://scholars/individual/per0000001 to POST to /people/uris")
 			t.Errorf("OR expected http://scholars/individual/org00000001 to POST to /organizations/uris")
