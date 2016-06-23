@@ -92,7 +92,7 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
 }
 
 func (wi WidgetsIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
-	perRegx := regexp.MustCompile(`.*individual/per[0-9]{7}`)
+	perRegx := regexp.MustCompile(`.*individual/per[0-9A-Za-z]{3,}`)
 	orgRegx := regexp.MustCompile(`.*individual/org[0-9]{8}`)
 
 
