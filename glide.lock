@@ -1,12 +1,13 @@
-hash: ee84adb91d3fcab2c9d58944ed968b2c8e918d30fb2175a5c1d71e808da60d93
-updated: 2016-03-01T14:49:53.120359622-05:00
+hash: 298865a36ebc7785789efe71fa7560c9c2bcdd1722453c1704e87f3cd2ec00c8
+updated: 2016-09-16T13:57:47.885830263-04:00
 imports:
 - name: github.com/garyburd/redigo
-  version: 55d64223b60ff7c6a7f1c391f611038a88a86b01
+  version: ffa8d46ada782d81cfda81a0fbd9f45ceae448e8
   subpackages:
-  - /redis
+  - redis
+  - internal
 - name: github.com/namsral/flag
-  version: 881a43080604bcf99ab1118a814d1cb2c268fc36
+  version: e6432831f90663e9fb69ca75eca1c86f8f37f729
 - name: github.com/OIT-ADS-Web/basicemail
   version: 18e4c8aa1339027b214b352432902185581961df
 - name: gopkg.in/natefinch/lumberjack.v2
