@@ -81,12 +81,10 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
 	req.SetBasicAuth(wbi.Indexer.Username, wbi.Indexer.Password)
 
 	resp, err := client.Do(req)
-
-	resp.Body.Close()
-
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
@@ -94,7 +92,6 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
 func (wi WidgetsIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
 	perRegx := regexp.MustCompile(`.*individual/per[0-9A-Za-z]{3,}`)
 	orgRegx := regexp.MustCompile(`.*individual/org[0-9]{8}`)
-
 
 	widgetsPeopleIndexer := NewWidgetsBatchIndexer(wi, "/people/uris", perRegx)
 	widgetsOrganizationIndexer := NewWidgetsBatchIndexer(wi, "/organizations/uris", orgRegx)

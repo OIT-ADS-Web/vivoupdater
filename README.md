@@ -10,7 +10,7 @@ To get started:
 
      go get github.com/OIT-ADS-Web/vivoupdater
      cd $GOPATH/src/github.com/OIT-ADS-Web/vivoupdater
-     glide up
+     glide install
      go install github.com/OIT-ADS-Web/vivoupdater...
 
 This will create $GOPATH/bin/vivo_indexer

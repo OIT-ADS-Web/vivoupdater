@@ -62,10 +62,10 @@ func init() {
 	flag.StringVar(&notificationEmail, "notification_email", "", "email address to use for notifications")
 
 	flag.StringVar(&logFile, "log_file", "vivoupdater.log", "rolling log file location")
-        flag.IntVar(&logMaxSize, "log_max_size", 500, "max size (in mb) of log file")
+	flag.IntVar(&logMaxSize, "log_max_size", 500, "max size (in mb) of log file")
 	flag.IntVar(&logMaxBackups, "log_max_backups", 10, "maximum number of old log files to retain")
 	flag.IntVar(&logMaxAge, "log_max_age", 28, "maximum number of days to keep log file")
-      }
+}
 
 func main() {
 	go http.ListenAndServe(":8484", nil)
@@ -99,11 +99,16 @@ func main() {
 	vivoIndexer := vivoupdater.VivoIndexer{vivoIndexerUrl, vivoEmail, vivoPassword}
 	widgetsIndexer := vivoupdater.WidgetsIndexer{widgetsIndexerBaseUrl, widgetsUser, widgetsPassword}
 
-	for b := range batches {
-		go vivoupdater.IndexBatch(ctx, vivoIndexer, b)
-		go vivoupdater.IndexBatch(ctx, widgetsIndexer, b)
+index_loop:
+	for {
+		select {
+		case b := <-batches:
+			go vivoupdater.IndexBatch(ctx, vivoIndexer, b)
+			go vivoupdater.IndexBatch(ctx, widgetsIndexer, b)
+		case <-ctx.Quit:
+			break index_loop
+		}
 	}
 
-	<-ctx.Quit
 	ctx.Logger.Println("Exiting...")
 }
