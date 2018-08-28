@@ -34,8 +34,11 @@ func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config
 }
 
 type KafkaSubscriber struct {
-	Brokers []string
-	Topics  []string
+	Brokers    []string
+	Topics     []string
+	ClientCert string
+	ClientKey  string
+	ServerCert string
 }
 
 func (ks KafkaSubscriber) Subscribe(ctx Context) chan UpdateMessage {
@@ -45,9 +48,12 @@ func (ks KafkaSubscriber) Subscribe(ctx Context) chan UpdateMessage {
 	brokers := ks.Brokers
 	topics := ks.Topics
 
-	tlsConfig, err := NewTLSConfig("scholars-load-dev.crt.pem",
-		"scholars-load-dev.key.pem",
-		"kafka-dev-ca.crt.pem")
+	ctx.Logger.Printf("%s:%s:%s", ks.ClientCert, ks.ClientKey, ks.ServerCert)
+	
+	tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
+	//tlsConfig, err := NewTLSConfig("scholars-load-dev.crt.pem", 
+	//"scholars-load-dev.key.pem", "kafka-dev-ca.crt.pem")
+
 	if err != nil {
 		log.Fatal(err)
 	}
