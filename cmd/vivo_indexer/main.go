@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"github.com/OIT-ADS-Web/vivoupdater"
 	"github.com/namsral/flag"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -8,6 +10,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -42,7 +45,34 @@ var logMaxSize int
 var logMaxBackups int
 var logMaxAge int
 
+// stole code from here: https://godoc.org/github.com/namsral/flag
+type csv []string
+
+var bootstrapFlag csv
+var topics csv
+
+// String is the method to format the flag's value, part of the flag.Value interface.
+// The String method's output will be used in diagnostics.
+func (c *csv) String() string {
+	return fmt.Sprint(*c)
+}
+
+// Set is the method to set the flag value, part of the flag.Value interface.
+// Set's argument is a string to be parsed to set the flag.
+// It's a comma-separated list, so we split it.
+func (c *csv) Set(value string) error {
+	if len(*c) > 0 {
+		return errors.New("flag already set")
+	}
+	for _, dt := range strings.Split(value, ",") {
+		*c = append(*c, dt)
+	}
+	return nil
+}
+
 func init() {
+	flag.Var(&bootstrapFlag, "bootstrap_servers", "comma-separated list of kafka servers")
+	flag.Var(&topics, "topics", "comma-separated list of topics")
 	flag.StringVar(&redisUrl, "redis_url", "localhost:6379", "host:port of the redis instance")
 	flag.StringVar(&redisChannel, "redis_channel", "development", "name of the redis channel to subscribe to")
 	flag.IntVar(&maxRedisAttempts, "max_redis_attempts", 3, "maximum number of consecutive attempts to connect to redis before exiting")
@@ -62,10 +92,10 @@ func init() {
 	flag.StringVar(&notificationEmail, "notification_email", "", "email address to use for notifications")
 
 	flag.StringVar(&logFile, "log_file", "vivoupdater.log", "rolling log file location")
-        flag.IntVar(&logMaxSize, "log_max_size", 500, "max size (in mb) of log file")
+	flag.IntVar(&logMaxSize, "log_max_size", 500, "max size (in mb) of log file")
 	flag.IntVar(&logMaxBackups, "log_max_backups", 10, "maximum number of old log files to retain")
 	flag.IntVar(&logMaxAge, "log_max_age", 28, "maximum number of days to keep log file")
-      }
+}
 
 func main() {
 	go http.ListenAndServe(":8484", nil)
@@ -93,7 +123,9 @@ func main() {
 		Logger: log,
 		Quit:   make(chan bool)}
 
-	updates := vivoupdater.UpdateSubscriber{redisUrl, redisChannel, maxRedisAttempts, redisRetryInterval}.Subscribe(ctx)
+	// something like this:
+	updates := vivoupdater.KafkaSubscriber{bootstrapFlag, topics}.Subscribe(ctx)
+	//updates := vivoupdater.UpdateSubscriber{redisUrl, redisChannel, maxRedisAttempts, redisRetryInterval}.Subscribe(ctx)
 	batches := vivoupdater.UriBatcher{batchSize, time.Duration(batchTimeout) * time.Second}.Batch(ctx, updates)
 
 	vivoIndexer := vivoupdater.VivoIndexer{vivoIndexerUrl, vivoEmail, vivoPassword}

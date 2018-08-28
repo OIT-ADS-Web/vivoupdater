@@ -2,10 +2,10 @@ package vivoupdater
 
 import (
 	"bytes"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
-	"log"
 )
 
 type VivoIndexer struct {
@@ -17,7 +17,6 @@ type VivoIndexer struct {
 func (wi VivoIndexer) Name() string {
 	return "VivoIndexer"
 }
-
 
 func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
 
@@ -54,10 +53,13 @@ func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[stri
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	resp.Body.Close()
+
+	//stackoverflow.com/questions/16280176/go-panic-runtime-error-invalid-memory-address-or-nil-pointer-dereference
 	if err != nil {
 		return batch, err
 	}
+
+	defer resp.Body.Close()
 	buf.Reset()
 	return batch, nil
 }

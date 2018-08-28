@@ -6,4 +6,5 @@ import:
   - /redis
 - package: github.com/namsral/flag
 - package: gopkg.in/natefinch/lumberjack.v2
-
+- package: github.com/Shopify/sarama
+- package: github.com/bsm/sarama-cluster
