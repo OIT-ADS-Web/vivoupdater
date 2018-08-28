@@ -33,12 +33,15 @@ func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config
 	return &tlsConfig, err
 }
 
+// FIXME: might need all sorts of things
+// configurable (acks etc...) maybe
 type KafkaSubscriber struct {
 	Brokers    []string
 	Topics     []string
 	ClientCert string
 	ClientKey  string
 	ServerCert string
+	ClientID string
 }
 
 func (ks KafkaSubscriber) Subscribe(ctx Context) chan UpdateMessage {
@@ -59,7 +62,7 @@ func (ks KafkaSubscriber) Subscribe(ctx Context) chan UpdateMessage {
 	}
 
 	consumerConfig := cluster.NewConfig()
-	consumerConfig.ClientID = "rn47" // should be config
+	consumerConfig.ClientID = ks.ClientID // should be config
 	consumerConfig.Net.TLS.Enable = true
 	consumerConfig.Net.TLS.Config = tlsConfig
 	consumerConfig.Consumer.Return.Errors = true
