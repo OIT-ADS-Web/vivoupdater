@@ -41,7 +41,7 @@ type KafkaSubscriber struct {
 	ClientCert string
 	ClientKey  string
 	ServerCert string
-	ClientID string
+	ClientID   string
 }
 
 func (ks KafkaSubscriber) Subscribe(ctx Context) chan UpdateMessage {
@@ -52,10 +52,8 @@ func (ks KafkaSubscriber) Subscribe(ctx Context) chan UpdateMessage {
 	topics := ks.Topics
 
 	ctx.Logger.Printf("%s:%s:%s", ks.ClientCert, ks.ClientKey, ks.ServerCert)
-	
+
 	tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
-	//tlsConfig, err := NewTLSConfig("scholars-load-dev.crt.pem", 
-	//"scholars-load-dev.key.pem", "kafka-dev-ca.crt.pem")
 
 	if err != nil {
 		log.Fatal(err)
@@ -84,7 +82,7 @@ func (ks KafkaSubscriber) Subscribe(ctx Context) chan UpdateMessage {
 			json.Unmarshal(msg.Value, &m)
 			updates <- m
 			log.Printf("REC:uri=%s", m.Triple.Subject)
-
+			// TODO: way to apply backpressure here - or somewhere?
 			// Mark the message as processed. The sarama-cluster library will
 			// automatically commit these.
 			// You can manually commit the offsets using consumer.CommitOffsets()
