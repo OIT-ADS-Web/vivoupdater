@@ -55,7 +55,9 @@ func (consumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error { return 
 
 func (consumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
 
-func (h consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (h consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
+	claim sarama.ConsumerGroupClaim) error {
+	// go func?
 	for msg := range claim.Messages() {
 		fmt.Printf("Message topic:%q partition:%d offset:%d\n", msg.Topic, msg.Partition, msg.Offset)
 		// used to be consumer.MarkOffset(msg, "metadata")
@@ -100,6 +102,7 @@ type KafkaSubscriber struct {
 // callback ?
 //ctx Context) chan UpdateMessage
 func (ks KafkaSubscriber) Subscribe(ctx Context) chan UpdateMessage {
+	updates := make(chan UpdateMessage)
 	//func (ks *KafkaSubscriber) Subscribe(h func(UpdateMessage) error) {
 	sarama.Logger = log.New(os.Stdout, "[samara] ", log.LstdFlags)
 	tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
@@ -132,20 +135,24 @@ func (ks KafkaSubscriber) Subscribe(ctx Context) chan UpdateMessage {
 	// go context, not our own
 	context := context.Background()
 
-	updates := make(chan UpdateMessage)
+	// TODO: how to make channel sending function return an error?
 	h := func(um UpdateMessage) {
 		updates <- um
 	}
-	for {
-		handler := consumerGroupHandler{
-			HandleUpdateMessage: h,
-		}
-		//err := group.Consume(ctx, []string{ks.ChangesTopic}, handler)
-		err := group.Consume(context, ks.Topics, handler)
-		if err != nil {
-			log.Print(err)
-		}
+
+	//for {
+	handler := consumerGroupHandler{
+		HandleUpdateMessage: h,
 	}
+	// NOTE: was in loop
+	//err := group.Consume(ctx, []string{ks.ChangesTopic}, handler)
+	err = group.Consume(context, ks.Topics, handler)
+	if err != nil {
+		log.Print(err)
+	}
+	//}
+	// how to return channel?
+	return updates
 }
 
 /*

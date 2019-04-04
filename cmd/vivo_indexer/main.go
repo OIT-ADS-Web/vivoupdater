@@ -49,6 +49,7 @@ var logMaxAge int
 // stole code from here: https://godoc.org/github.com/namsral/flag
 type csv []string
 
+// kafka
 var bootstrapFlag csv
 var topics csv
 

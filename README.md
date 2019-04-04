@@ -1,27 +1,26 @@
 # vivoupdater
 
-Vivoupdater subscribes to a Redis channel containing recently loaded Vivo triples. It will post into both Vivo and Vivo Widgets to trigger selective re-indexing of relevant people and organizations.
+Vivoupdater subscribes to a Redis channel (or Kafka Topic) containing recently loaded Vivo triples. It will post into both Vivo and Vivo Widgets to trigger selective re-indexing of relevant people and organizations.
 
 ##Dependencies
 
-Dependencies are managed with [Glide](https://github.com/Masterminds/glide)
+Dependencies are managed with Go Modules
 
 To get started:
 
      go get github.com/OIT-ADS-Web/vivoupdater
      cd $GOPATH/src/github.com/OIT-ADS-Web/vivoupdater
-     glide up
      go install github.com/OIT-ADS-Web/vivoupdater...
 
 This will create $GOPATH/bin/vivo_indexer
-
 
 ##Configuration
 
 The following environment variables are used to control behavior:
 
-### REDIS_URL
+### REDIS... (if Redis enabled)
 
+### REDIS_URL 
   the URL of the redis channel (redis:0000)
 
 ### REDIS_CHANNEL
@@ -69,5 +68,23 @@ The following environment variables are used to control behavior:
 ### NOTIFICATION_FROM
 
 ### NOTIFICATION_TO
+
+
+### KAFKA... (if Kafka enabled)
+
+### BOOTSTRAP_SERVERS
+
+### TOPICS
+
+### CLIENT_CERT
+
+### CLIENT_KEY
+
+### SERVER_CERT
+
+### CLIENT_ID
+
+### GROUP_NAME
+
 
 
