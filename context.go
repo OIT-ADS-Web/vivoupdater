@@ -2,8 +2,9 @@ package vivoupdater
 
 import (
 	"fmt"
-	"github.com/OIT-ADS-Web/basicemail"
 	"log"
+
+	"github.com/OIT-ADS-Web/basicemail"
 )
 
 type Context struct {
@@ -11,6 +12,18 @@ type Context struct {
 	Logger *log.Logger
 	Quit   chan bool
 }
+
+// TODO: not sure about this
+/*
+func (ctx Context) Deadline() (time.Time, bool) {
+	d := time.Now().Add(50 * time.Millisecond)
+	return d, false
+}
+
+func (ctx Context) Done() <-chan struct{} {
+	return ctx.Quit
+}
+*/
 
 func (ctx Context) handleError(desc string, err error, fatal bool) {
 	ctx.Logger.Println(desc)

@@ -1,1 +1,5 @@
 vendor
+cmd/vivo_indexer/vivo_indexer
+.envrc
+.tool-versions
+.env

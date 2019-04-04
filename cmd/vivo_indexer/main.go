@@ -3,15 +3,16 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/OIT-ADS-Web/vivoupdater"
-	"github.com/namsral/flag"
-	"gopkg.in/natefinch/lumberjack.v2"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/OIT-ADS-Web/vivoupdater"
+	"github.com/namsral/flag"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var Build string
@@ -55,6 +56,7 @@ var clientCert string
 var clientKey string
 var serverCert string
 var clientId string
+var groupName string
 
 // String is the method to format the flag's value, part of the flag.Value interface.
 // The String method's output will be used in diagnostics.
@@ -82,6 +84,8 @@ func init() {
 	flag.StringVar(&clientKey, "client_key", "", "client ssl key (*.pem file location)")
 	flag.StringVar(&serverCert, "server_cert", "", "server ssl cert (*.pem file location)")
 	flag.StringVar(&clientId, "client_id", "", "client (consumer) id to send to kafka")
+	flag.StringVar(&groupName, "group_name", "", "client (consumer) group name to send to kafka")
+
 	flag.StringVar(&redisUrl, "redis_url", "localhost:6379", "host:port of the redis instance")
 	flag.StringVar(&redisChannel, "redis_channel", "development", "name of the redis channel to subscribe to")
 	flag.IntVar(&maxRedisAttempts, "max_redis_attempts", 3, "maximum number of consecutive attempts to connect to redis before exiting")
@@ -133,7 +137,25 @@ func main() {
 		Quit:   make(chan bool)}
 
 	// something like this:
-	updates := vivoupdater.KafkaSubscriber{bootstrapFlag, topics, clientCert, clientKey, serverCert, clientId}.Subscribe(ctx)
+	// how to get values from vault ---?
+	/*
+			type KafkaSubscriber struct {
+			Brokers    []string
+			Topics     []string
+			ClientCert string
+			ClientKey  string
+			ServerCert string
+			ClientID   string
+			GroupName  string
+		}
+	*/
+	updates := vivoupdater.KafkaSubscriber{Brokers: bootstrapFlag,
+		Topics:     topics,
+		ClientCert: clientCert,
+		ClientKey:  clientKey,
+		ServerCert: serverCert,
+		ClientID:   clientId,
+		GroupName:  groupName}.Subscribe(ctx)
 	//updates := vivoupdater.UpdateSubscriber{redisUrl, redisChannel, maxRedisAttempts, redisRetryInterval}.Subscribe(ctx)
 	batches := vivoupdater.UriBatcher{batchSize, time.Duration(batchTimeout) * time.Second}.Batch(ctx, updates)
 
