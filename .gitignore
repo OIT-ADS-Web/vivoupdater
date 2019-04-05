@@ -5,3 +5,4 @@ cmd/vivo_indexer/vivo_indexer
 .env
 # putting ssl stuff in here
 ssl/*
+*.log

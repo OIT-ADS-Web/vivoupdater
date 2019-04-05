@@ -10,6 +10,7 @@ type UriBatcher struct {
 }
 
 func (ub UriBatcher) Batch(ctx Context, updates chan UpdateMessage) chan map[string]bool {
+	ctx.Logger.Println("in Batch method")
 	batches := make(chan map[string]bool)
 	go func() {
 		batch := make(map[string]bool, ub.BatchSize)
@@ -17,6 +18,7 @@ func (ub UriBatcher) Batch(ctx Context, updates chan UpdateMessage) chan map[str
 			timer := time.NewTimer(ub.BatchTimeout)
 			select {
 			case u := <-updates:
+				ctx.Logger.Println("got some updates")
 				timer.Stop()
 				batch[u.Triple.Subject] = true
 				if len(batch) == ub.BatchSize {

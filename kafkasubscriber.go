@@ -55,9 +55,12 @@ func (consumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error { return 
 
 func (consumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
 
+// must return 'error'
 func (h consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 	claim sarama.ConsumerGroupClaim) error {
 	// go func?
+	// this is a channel?
+	// Messages() <-chan *ConsumerMessage
 	for msg := range claim.Messages() {
 		fmt.Printf("Message topic:%q partition:%d offset:%d\n", msg.Topic, msg.Partition, msg.Offset)
 		// used to be consumer.MarkOffset(msg, "metadata")
