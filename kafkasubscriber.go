@@ -1,18 +1,6 @@
 package vivoupdater
 
-import (
-	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
-
-	"github.com/Shopify/sarama"
-)
-
+/*
 var Subscriber *KafkaSubscriber
 
 func GetSubscriber() *KafkaSubscriber {
@@ -45,6 +33,7 @@ func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config
 	tlsConfig.BuildNameToCertificate()
 	return &tlsConfig, err
 }
+
 
 // handler supposed to return error
 type consumerGroupHandler struct {
@@ -157,6 +146,7 @@ func (ks KafkaSubscriber) Subscribe(ctx Context) chan UpdateMessage {
 	// how to return channel?
 	return updates
 }
+*/
 
 /*
 func (ks KafkaSubscriber) SubscribeOld(ctx Context) chan UpdateMessage {

@@ -1,5 +1,6 @@
 vendor
 cmd/vivo_indexer/vivo_indexer
+cmd/test_produce/test_produce
 .envrc
 .tool-versions
 .env

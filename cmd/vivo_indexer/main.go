@@ -11,11 +11,13 @@ import (
 
 	//"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/OIT-ADS-Web/vivoupdater"
 	"github.com/namsral/flag"
 
 	"github.com/OIT-ADS-Web/vivoupdater/config"
+	"github.com/OIT-ADS-Web/vivoupdater/kafka"
 )
 
 func init() {
@@ -71,19 +73,15 @@ func main() {
 
 	flag.Parse()
 
-	//go http.ListenAndServe(":8484", nil)
 	var log = log.New(os.Stdout, "[vivo-updater]", log.LstdFlags)
 
-	/*
-		log.SetOutput(&lumberjack.Logger{
-			Filename:   config.LogFile,
-			MaxSize:    config.LogMaxSize,
-			MaxBackups: config.LogMaxBackups,
-			MaxAge:     config.LogMaxAge,
-		})
-	*/
+	log.SetOutput(&lumberjack.Logger{
+		Filename:   config.LogFile,
+		MaxSize:    config.LogMaxSize,
+		MaxBackups: config.LogMaxBackups,
+		MaxAge:     config.LogMaxAge,
+	})
 
-	log.Println("started...")
 	ctx := vivoupdater.Context{
 		Notice: vivoupdater.Notification{
 			Smtp: config.NotificationSmtp,
@@ -92,7 +90,8 @@ func main() {
 		Logger: log,
 		Quit:   make(chan bool)}
 
-	updates := vivoupdater.KafkaSubscriber{
+	// channel
+	updates := kafka.UpdateSubscriber{
 		Brokers:    config.BootstrapFlag,
 		Topics:     config.Topics,
 		ClientCert: config.ClientCert,
@@ -121,7 +120,6 @@ func main() {
 	}
 
 	//loggedRouter := handlers.CombinedLoggingHandler(os.Stdout, router)
-
 	log.Fatal(http.ListenAndServe(":8484", router))
 
 	<-ctx.Quit

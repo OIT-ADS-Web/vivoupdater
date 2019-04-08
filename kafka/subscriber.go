@@ -15,6 +15,7 @@ import (
 	"github.com/Shopify/sarama"
 )
 
+/*
 var Subscriber *KafkaSubscriber
 
 func GetSubscriber() *KafkaSubscriber {
@@ -24,6 +25,7 @@ func GetSubscriber() *KafkaSubscriber {
 func SetSubscriber(s *KafkaSubscriber) {
 	Subscriber = s
 }
+*/
 
 // TODO: get from vault
 func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config, error) {
@@ -50,10 +52,9 @@ func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config
 	return &tlsConfig, err
 }
 
-// handler supposed to return error
 type ConsumerGroupHandler struct {
+	Context vu.Context
 	Updates chan vu.UpdateMessage
-	Logger  *log.Logger
 }
 
 func (ConsumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error { return nil }
@@ -63,45 +64,22 @@ func (ConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { retur
 func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 	claim sarama.ConsumerGroupClaim) error {
 
-	/*
-		var msg SyncMessage
-		for {
-			select {
-			case cMsg := <-claim.Messages():
-				err := json.Unmarshal(cMsg.Value, &msg)
-				if err != nil {
-					return err
-				}
-				// do something
-				sess.MarkMessage(cMsg, "")
-			case <-sess.Context().Done():
-				return nil
-			}
-		}
-	*/
-
 	for msg := range claim.Messages() {
-		fmt.Printf("Message topic:%q partition:%d offset:%d\n", msg.Topic, msg.Partition, msg.Offset)
-
 		um := vu.UpdateMessage{}
 		err := json.Unmarshal(msg.Value, &um)
-
-		log.Printf("REC:uri=%s\n", um.Triple.Subject)
-		c.Logger.Printf("REC:uri=%s\n", um.Triple.Subject)
 
 		if err != nil {
 			log.Printf("error: %+v\n", err)
 		}
 		c.Updates <- um
-
+		// if not succesful ? don't mark offset ??
 		// used to be consumer.MarkOffset(msg, "metadata")
 		sess.MarkMessage(msg, "")
-
 	}
 	return nil
 }
 
-type KafkaSubscriber struct {
+type UpdateSubscriber struct {
 	Brokers    []string
 	Topics     []string
 	ClientCert string
@@ -111,8 +89,7 @@ type KafkaSubscriber struct {
 	GroupName  string
 }
 
-func (ks KafkaSubscriber) Subscribe(ctx vu.Context) chan vu.UpdateMessage {
-	updates := make(chan vu.UpdateMessage)
+func startConsumer(ks UpdateSubscriber, handler ConsumerGroupHandler) {
 	sarama.Logger = log.New(os.Stdout, "[samara] ", log.LstdFlags)
 	tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
 
@@ -121,18 +98,12 @@ func (ks KafkaSubscriber) Subscribe(ctx vu.Context) chan vu.UpdateMessage {
 	}
 
 	consumerConfig := sarama.NewConfig()
-	consumerConfig.ClientID = ks.ClientID // should be config
+	consumerConfig.ClientID = ks.ClientID
 	consumerConfig.Version = sarama.V1_0_0_0
 	consumerConfig.Net.TLS.Enable = true
 	consumerConfig.Net.TLS.Config = tlsConfig
 	consumerConfig.Consumer.Return.Errors = true
 
-	//consumerConfig.Producer.Retry.Max = 2
-	//consumerConfig.Producer.Retry.Backoff = (10 * time.Second)
-	//consumerConfig.Producer.Return.Successes = true
-	//consumerConfig.Producer.Return.Errors = true
-	//consumerConfig.Producer.RequiredAcks = 1
-	//consumerConfig.Producer.Timeout = (10 * time.Second)
 	consumerConfig.Net.ReadTimeout = (10 * time.Second)
 	consumerConfig.Net.DialTimeout = (10 * time.Second)
 	consumerConfig.Net.WriteTimeout = (10 * time.Second)
@@ -141,38 +112,37 @@ func (ks KafkaSubscriber) Subscribe(ctx vu.Context) chan vu.UpdateMessage {
 	consumerConfig.Metadata.Retry.Backoff = (10 * time.Second)
 	consumerConfig.Metadata.RefreshFrequency = (15 * time.Minute)
 
+	// set a max wait time??
 	//consumerConfig.Consumer.MaxWaitTime = time.Duration(305000 * time.Millisecond)
 	consumerConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
 
-	// Start with a client
+	// go context, not vivoupdater.Context
+	context := context.Background()
 	client, err := sarama.NewClient(ks.Brokers, consumerConfig)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("CLIENT ERROR:%v\n", err)
 	}
 	defer func() { _ = client.Close() }()
 
 	// Start a new consumer group
 	group, err := sarama.NewConsumerGroupFromClient(ks.GroupName, client)
 	if err != nil {
-		log.Print(err)
+		log.Printf("GROUP ERROR:%v\n", err)
 	}
 	defer func() { _ = group.Close() }()
 
-	// go context, not our own
-	context := context.Background()
+	err = group.Consume(context, ks.Topics, handler)
+	if err != nil {
+		log.Printf("ERR:%v\n", err)
+	}
+	defer close(handler.Updates)
+}
 
-	// is go wrapper necessary here?
+func (ks UpdateSubscriber) Subscribe(ctx vu.Context) chan vu.UpdateMessage {
+	updates := make(chan vu.UpdateMessage)
+	handler := ConsumerGroupHandler{Updates: updates, Context: ctx}
 	go func() {
-		handler := ConsumerGroupHandler{Updates: updates,
-			Logger: ctx.Logger}
-		// NOTE: was in loop
-		//err := group.Consume(ctx, []string{ks.ChangesTopic}, handler)
-
-		err = group.Consume(context, ks.Topics, handler)
-		if err != nil {
-			log.Print(err)
-		}
-
+		startConsumer(ks, handler)
 	}()
 	return updates
 }
