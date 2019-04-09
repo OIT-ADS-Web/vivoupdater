@@ -1,8 +1,10 @@
 module github.com/OIT-ADS-Web/vivoupdater
 
 require (
+	github.com/DCSO/fluxline v0.0.0-20181026163805-4f8ed83158d5
 	github.com/OIT-ADS-Web/basicemail v0.0.0-20150610195126-18e4c8aa1339
 	github.com/Shopify/sarama v1.21.0
+	github.com/ShowMax/go-fqdn v0.0.0-20180501083314-6f60894d629f // indirect
 	github.com/bsm/sarama-cluster v2.1.15+incompatible
 	github.com/garyburd/redigo v0.0.0-20160226191108-55d64223b60f
 	github.com/gorilla/handlers v1.4.0

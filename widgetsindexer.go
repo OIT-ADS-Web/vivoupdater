@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type WidgetsIndexer struct {
@@ -50,6 +51,7 @@ func (wbi *WidgetsBatchIndexer) Gather(u string) {
 
 func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
 	size := len(wbi.Uris)
+	start := time.Now()
 
 	if size <= 0 {
 		return nil
@@ -86,6 +88,10 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
 	if err != nil {
 		return err
 	}
+
+	end := time.Now()
+	metrics := IndexMetrics{Start: start, End: end, Uris: wbi.Uris, Name: "widgets"}
+	SendMetrics(metrics, logger)
 
 	defer resp.Body.Close()
 	return nil

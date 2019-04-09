@@ -1,6 +1,7 @@
 package vivoupdater
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -10,7 +11,7 @@ import (
 	"log"
 	"time"
 
-	//vu "github.com/OIT-ADS-Web/vivoupdater"
+	"github.com/DCSO/fluxline"
 	"github.com/Shopify/sarama"
 )
 
@@ -79,7 +80,6 @@ func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 				return err
 			}
 			c.Logger.Printf("GOT RECORD!: %v\n", um.Triple.Subject)
-			// send to batcher ??
 			c.Updates <- um
 			sess.MarkMessage(msg, "")
 		case <-sess.Context().Done():
@@ -142,9 +142,6 @@ func StartConsumer(ks KafkaSubscriber, handler ConsumerGroupHandler) {
 	}
 	defer func() { _ = group.Close() }()
 
-	// way to 'cancel' if
-	//ctx, cancel := context.WithCancel(handler.Context)
-
 	// NOTE: sometimes this gives:
 	// CONSUME ERR:kafka server:
 	// "A rebalance for the group is in progress. Please re-join the group.
@@ -156,19 +153,6 @@ func StartConsumer(ks KafkaSubscriber, handler ConsumerGroupHandler) {
 		handler.Cancel()
 	}
 }
-
-/*
-go func() {
-    for {
-        select {
-        case <- quit:
-            return
-        default:
-            // Do other stuff
-        }
-    }
-}()
-*/
 
 //https://dave.cheney.net/tag/logging
 func (ks KafkaSubscriber) Subscribe(ctx context.Context, logger *log.Logger) chan UpdateMessage {
@@ -197,7 +181,6 @@ func SetProducer(p sarama.AsyncProducer) {
 func SetupProducer(ks *KafkaSubscriber) error {
 	tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
 	if err != nil {
-		//var ap sarama.AsyncProducer
 		return err
 	}
 	producerConfig := sarama.NewConfig()
@@ -212,13 +195,52 @@ func SetupProducer(ks *KafkaSubscriber) error {
 	}
 
 	SetProducer(producer)
-	//ks.Producer = producer
 	return nil
 }
 
-func (ks *KafkaSubscriber) Produce(topic string, val string) {
+func Produce(topic string, val string) {
 	msg := &sarama.ProducerMessage{Topic: topic, Value: sarama.StringEncoder(val)}
 	prod := GetProducer()
 	// NOTE: async
 	prod.Input() <- msg
+}
+
+func FluxLine(measurement string, c interface{}, tags map[string]string) (bytes.Buffer, error) {
+	var b bytes.Buffer
+	encoder := fluxline.NewEncoder(&b)
+	err := encoder.Encode(measurement, c, tags)
+	if err != nil {
+		return b, err
+	}
+	return b, nil
+}
+
+type IndexMetrics struct {
+	Start time.Time
+	End   time.Time
+	Uris  []string
+	Name  string
+}
+
+func SendMetrics(metrics IndexMetrics, logger *log.Logger) {
+	rt := (metrics.End.Sub(metrics.Start).Seconds() * 1000.0)
+
+	logger.Println("...sending some metrics")
+	d := struct {
+		Duration float64 `influx:"duration"`
+		Count    int64   `influx:"count"`
+	}{
+		Duration: rt,
+		Count:    int64(len(metrics.Uris)),
+	}
+
+	tags := map[string]string{
+		"indexer": metrics.Name,
+	}
+
+	line, err := FluxLine("vivoupdater.update", d, tags)
+	if err == nil {
+		Produce(MetricsTopic, line.String())
+	}
+
 }

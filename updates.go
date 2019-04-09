@@ -31,6 +31,11 @@ type UriBatcher struct {
 	BatchTimeout time.Duration
 }
 
+/*
+
+
+ */
+
 func (ub UriBatcher) Batch(updates chan UpdateMessage) chan map[string]bool {
 	batches := make(chan map[string]bool)
 	go func() {
@@ -49,6 +54,7 @@ func (ub UriBatcher) Batch(updates chan UpdateMessage) chan map[string]bool {
 				if len(batch) > 0 {
 					batches <- batch
 					batch = make(map[string]bool, ub.BatchSize)
+
 				}
 
 			}
