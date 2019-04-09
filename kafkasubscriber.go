@@ -1,6 +1,19 @@
 package vivoupdater
 
-/*
+import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"time"
+
+	//vu "github.com/OIT-ADS-Web/vivoupdater"
+	"github.com/Shopify/sarama"
+)
+
 var Subscriber *KafkaSubscriber
 
 func GetSubscriber() *KafkaSubscriber {
@@ -17,6 +30,7 @@ func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config
 	// Load client cert
 	cert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
 	if err != nil {
+		fmt.Println("error reading cert")
 		return &tlsConfig, err
 	}
 	tlsConfig.Certificates = []tls.Certificate{cert}
@@ -24,6 +38,7 @@ func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config
 	// Load CA cert - should get bytes from vault
 	caCert, err := ioutil.ReadFile(caCertFile)
 	if err != nil {
+		fmt.Println("error reading caCert")
 		return &tlsConfig, err
 	}
 	caCertPool := x509.NewCertPool()
@@ -34,56 +49,51 @@ func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config
 	return &tlsConfig, err
 }
 
-
-// handler supposed to return error
-type consumerGroupHandler struct {
-	HandleUpdateMessage func(UpdateMessage) //error
+type ConsumerGroupHandler struct {
+	Context context.Context
+	Logger  *log.Logger
+	Updates chan UpdateMessage
+	Cancel  context.CancelFunc
 }
 
-func (consumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error { return nil }
+func (c ConsumerGroupHandler) Setup(sess sarama.ConsumerGroupSession) error {
+	c.Logger.Printf("SETUP:%s\n", sess.MemberID())
+	return nil
+}
 
-func (consumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
+func (c ConsumerGroupHandler) Cleanup(sess sarama.ConsumerGroupSession) error {
+	c.Logger.Printf("CLEANUP:%s\n", sess.MemberID())
+	return nil
+}
 
-// must return 'error'
-func (h consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
+func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 	claim sarama.ConsumerGroupClaim) error {
-	// go func?
-	// this is a channel?
-	// Messages() <-chan *ConsumerMessage
-	for msg := range claim.Messages() {
-		fmt.Printf("Message topic:%q partition:%d offset:%d\n", msg.Topic, msg.Partition, msg.Offset)
-		// used to be consumer.MarkOffset(msg, "metadata")
-		sess.MarkMessage(msg, "")
 
-		um := UpdateMessage{}
-		err := json.Unmarshal(msg.Value, &um)
+	um := UpdateMessage{}
 
-		//json.Unmarshal(msg.Value, &m)
-		// NOTE: needs to add to channel
-		//updates <- m
-		log.Printf("REC:uri=%s\n", um.Triple.Subject)
-
-		//updates <- um
-		// TODO: way to apply backpressure here - or somewhere?
-		// Mark the message as processed. The sarama-cluster library will
-		// automatically commit these.
-		// You can manually commit the offsets using consumer.CommitOffsets()
-		//consumer.MarkOffset(msg, "required-metadata")
-
-		if err != nil {
-			log.Printf("error: %+v\n", err)
-		}
-		if h.HandleUpdateMessage != nil {
-			//e.g. add to channel updates <- um
-			h.HandleUpdateMessage(um)
+	for {
+		select {
+		case msg := <-claim.Messages():
+			err := json.Unmarshal(msg.Value, &um)
+			if err != nil {
+				return err
+			}
+			c.Logger.Printf("GOT RECORD!: %v\n", um.Triple.Subject)
+			// send to batcher ??
+			c.Updates <- um
+			sess.MarkMessage(msg, "")
+		case <-sess.Context().Done():
+			err := sess.Context().Err()
+			notifier := GetNotifier()
+			notifier.DoSend("Kafka Subscriber shutdown", err)
+			return nil
 		}
 	}
-	return nil
 }
 
 type KafkaSubscriber struct {
 	Brokers    []string
-	Topics     []string
+	Topic      string
 	ClientCert string
 	ClientKey  string
 	ServerCert string
@@ -91,134 +101,124 @@ type KafkaSubscriber struct {
 	GroupName  string
 }
 
-// callback ?
-//ctx Context) chan UpdateMessage
-func (ks KafkaSubscriber) Subscribe(ctx Context) chan UpdateMessage {
-	updates := make(chan UpdateMessage)
-	//func (ks *KafkaSubscriber) Subscribe(h func(UpdateMessage) error) {
-	sarama.Logger = log.New(os.Stdout, "[samara] ", log.LstdFlags)
+func StartConsumer(ks KafkaSubscriber, handler ConsumerGroupHandler) {
+	sarama.Logger = handler.Logger
+
 	tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
 
 	if err != nil {
-		log.Fatal(err)
+		handler.Logger.Fatal(err)
 	}
 
 	consumerConfig := sarama.NewConfig()
-	consumerConfig.ClientID = ks.ClientID // should be config
+	consumerConfig.ClientID = ks.ClientID
 	consumerConfig.Version = sarama.V1_0_0_0
 	consumerConfig.Net.TLS.Enable = true
 	consumerConfig.Net.TLS.Config = tlsConfig
 	consumerConfig.Consumer.Return.Errors = true
 
-	// Start with a client
+	consumerConfig.Net.ReadTimeout = (10 * time.Second)
+	consumerConfig.Net.DialTimeout = (10 * time.Second)
+	consumerConfig.Net.WriteTimeout = (10 * time.Second)
+
+	consumerConfig.Metadata.Retry.Max = 1
+	consumerConfig.Metadata.Retry.Backoff = (10 * time.Second)
+	consumerConfig.Metadata.RefreshFrequency = (15 * time.Minute)
+
+	// set a max wait time??
+	//consumerConfig.Consumer.MaxWaitTime = time.Duration(305000 * time.Millisecond)
+	consumerConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
+	//consumerConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
 	client, err := sarama.NewClient(ks.Brokers, consumerConfig)
 	if err != nil {
-		log.Fatal(err)
+		handler.Logger.Fatalf("CLIENT ERROR:%v\n", err)
 	}
 	defer func() { _ = client.Close() }()
 
 	// Start a new consumer group
 	group, err := sarama.NewConsumerGroupFromClient(ks.GroupName, client)
 	if err != nil {
-		log.Print(err)
+		handler.Logger.Printf("GROUP ERROR:%v\n", err)
 	}
 	defer func() { _ = group.Close() }()
 
-	// go context, not our own
-	context := context.Background()
+	// way to 'cancel' if
+	//ctx, cancel := context.WithCancel(handler.Context)
 
-	// TODO: how to make channel sending function return an error?
-	h := func(um UpdateMessage) {
-		updates <- um
-	}
-
-	//for {
-	handler := consumerGroupHandler{
-		HandleUpdateMessage: h,
-	}
-	// NOTE: was in loop
-	//err := group.Consume(ctx, []string{ks.ChangesTopic}, handler)
-	err = group.Consume(context, ks.Topics, handler)
+	// NOTE: sometimes this gives:
+	// CONSUME ERR:kafka server:
+	// "A rebalance for the group is in progress. Please re-join the group.
+	// Closing Client, Error while closing connection to broker i/o timeout"
+	err = group.Consume(handler.Context, []string{ks.Topic}, handler)
 	if err != nil {
-		log.Print(err)
+		handler.Logger.Printf("CONSUME ERR:%v\n", err)
+		// NOTE: not sure about this
+		handler.Cancel()
 	}
-	//}
-	// how to return channel?
-	return updates
 }
-*/
 
 /*
-func (ks KafkaSubscriber) SubscribeOld(ctx Context) chan UpdateMessage {
+go func() {
+    for {
+        select {
+        case <- quit:
+            return
+        default:
+            // Do other stuff
+        }
+    }
+}()
+*/
+
+//https://dave.cheney.net/tag/logging
+func (ks KafkaSubscriber) Subscribe(ctx context.Context, logger *log.Logger) chan UpdateMessage {
 	updates := make(chan UpdateMessage)
 
-	sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
-	brokers := ks.Brokers
-	topics := ks.Topics
-
-	ctx.Logger.Printf("%s:%s:%s", ks.ClientCert, ks.ClientKey, ks.ServerCert)
-
-	tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	consumerConfig := sarama.NewConfig()
-	consumerConfig.ClientID = ks.ClientID // should be config
-	consumerConfig.Net.TLS.Enable = true
-	consumerConfig.Net.TLS.Config = tlsConfig
-	consumerConfig.Consumer.Return.Errors = true
-
-	// Start with a client
-	client, err := sarama.NewClient(ks.Brokers, consumerConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() { _ = client.Close() }()
-
-	// Start a new consumer group
-	group, err := sarama.NewConsumerGroupFromClient(ks.GroupName, client)
-	if err != nil {
-		log.Print(err)
-	}
-	defer func() { _ = group.Close() }()
-
-
-
-
-		consumer, err := cluster.NewConsumer(
-			brokers,
-			"group-id",
-			topics,
-			consumerConfig)
-
-		if err != nil {
-			panic(err)
-			//close(updates)
-			//ctx.handleError("Problem communicating with kafka queue", err, true)
-		}
-
-		defer consumer.Close()
-
-
-
-	go func() {
-		// The loop will iterate each time a message is written to the underlying channel
-		for msg, ok := range group.Messages() {
-			//for msg, ok := range consumer.Messages() {
-			var m UpdateMessage
-			json.Unmarshal(msg.Value, &m)
-			updates <- m
-			log.Printf("REC:uri=%s", m.Triple.Subject)
-			// TODO: way to apply backpressure here - or somewhere?
-			// Mark the message as processed. The sarama-cluster library will
-			// automatically commit these.
-			// You can manually commit the offsets using consumer.CommitOffsets()
-			consumer.MarkOffset(msg, "required-metadata")
-			//break
-		}
-	}()
+	cancellable, cancel := context.WithCancel(ctx)
+	handler := ConsumerGroupHandler{Context: cancellable,
+		Logger:  logger,
+		Updates: updates,
+		Cancel:  cancel}
+	// need to use channel to send to batcher
+	go StartConsumer(ks, handler)
 	return updates
 }
-*/
+
+var producer sarama.AsyncProducer
+
+func GetProducer() sarama.AsyncProducer {
+	return producer
+}
+
+func SetProducer(p sarama.AsyncProducer) {
+	producer = p
+}
+
+func SetupProducer(ks *KafkaSubscriber) error {
+	tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
+	if err != nil {
+		//var ap sarama.AsyncProducer
+		return err
+	}
+	producerConfig := sarama.NewConfig()
+	producerConfig.ClientID = ks.ClientID
+	producerConfig.Version = sarama.V1_0_0_0
+	producerConfig.Net.TLS.Enable = true
+	producerConfig.Net.TLS.Config = tlsConfig
+
+	producer, err := sarama.NewAsyncProducer(ks.Brokers, producerConfig)
+	if err != nil {
+		return err
+	}
+
+	SetProducer(producer)
+	//ks.Producer = producer
+	return nil
+}
+
+func (ks *KafkaSubscriber) Produce(topic string, val string) {
+	msg := &sarama.ProducerMessage{Topic: topic, Value: sarama.StringEncoder(val)}
+	prod := GetProducer()
+	// NOTE: async
+	prod.Input() <- msg
+}

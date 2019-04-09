@@ -1,6 +1,5 @@
 package vivoupdater
 
-/*
 import (
 	"bytes"
 	"log"
@@ -20,6 +19,7 @@ func (wi VivoIndexer) Name() string {
 }
 
 func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
+
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 	err := w.WriteField("email", vi.Username)
@@ -63,5 +63,3 @@ func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[stri
 	buf.Reset()
 	return batch, nil
 }
-
-*/

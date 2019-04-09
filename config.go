@@ -1,4 +1,4 @@
-package config
+package vivoupdater
 
 import (
 	"errors"
@@ -14,12 +14,14 @@ type CSV []string
 
 type KafkaConfig struct {
 	BootstrapFlag CSV
-	Topics        CSV
-	ClientCert    string
-	ClientKey     string
-	ServerCert    string
-	ClientId      string
-	GroupName     string
+	//Topics        CSV
+	MetricsTopic string
+	UpdatesTopic string
+	ClientCert   string
+	ClientKey    string
+	ServerCert   string
+	ClientId     string
+	GroupName    string
 }
 
 // redis
@@ -85,7 +87,7 @@ var BatchSize int
 var BatchTimeout int
 var NotificationSmtp string
 var NotificationFrom string
-var NotificationEmail string
+var NotificationEmail CSV
 
 // logging
 var LogFile string
@@ -95,23 +97,15 @@ var LogMaxAge int
 
 // kafka
 var BootstrapFlag CSV
-var Topics CSV
 
+//var Topics CSV
+var UpdatesTopic string
+var MetricsTopic string
 var ClientCert string
 var ClientKey string
 var ServerCert string
 var ClientId string
 var GroupName string
-
-// kafka
-//var bootstrapFlag csv
-//var topics csv
-
-//var clientCert string
-//var clientKey string
-//var serverCert string
-//var clientId string
-//var groupName string
 
 // String is the method to format the flag's value, part of the flag.Value interface.
 // The String method's output will be used in diagnostics.

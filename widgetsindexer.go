@@ -1,6 +1,5 @@
 package vivoupdater
 
-/*
 import (
 	"encoding/json"
 	"log"
@@ -92,9 +91,12 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
 	return nil
 }
 
+const PersonFilterRegex = `.*individual/per[0-9A-Za-z]{3,}`
+const OrgFilterRegex = `.*individual/org[0-9]{8}`
+
 func (wi WidgetsIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
-	perRegx := regexp.MustCompile(`.*individual/per[0-9A-Za-z]{3,}`)
-	orgRegx := regexp.MustCompile(`.*individual/org[0-9]{8}`)
+	perRegx := regexp.MustCompile(PersonFilterRegex)
+	orgRegx := regexp.MustCompile(OrgFilterRegex)
 
 	widgetsPeopleIndexer := NewWidgetsBatchIndexer(wi, "/people/uris", perRegx)
 	widgetsOrganizationIndexer := NewWidgetsBatchIndexer(wi, "/organizations/uris", orgRegx)
@@ -118,4 +120,3 @@ func (wi WidgetsIndexer) Index(batch map[string]bool, logger *log.Logger) (map[s
 
 	return batch, nil
 }
-*/

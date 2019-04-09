@@ -1,8 +1,30 @@
 package vivoupdater
 
-import (
-	"time"
-)
+import "time"
+
+type UpdateSubscriber interface {
+	MaxConnectAttempts() int
+	RetryInterval() int
+}
+
+type Indexer interface {
+	Name() string
+}
+
+type Triple struct {
+	Subject   string
+	Predicate string
+	Object    string
+}
+
+type UpdateMessage struct {
+	Type   string
+	Phase  string
+	Name   string
+	Triple Triple
+	// add a retry type of flag?
+	Attempts int `json:",omitempty"`
+}
 
 type UriBatcher struct {
 	BatchSize    int
@@ -17,7 +39,6 @@ func (ub UriBatcher) Batch(updates chan UpdateMessage) chan map[string]bool {
 			timer := time.NewTimer(ub.BatchTimeout)
 			select {
 			case u := <-updates:
-				//ctx.Logger.Println("got some updates")
 				timer.Stop()
 				batch[u.Triple.Subject] = true
 				if len(batch) == ub.BatchSize {

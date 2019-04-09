@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/OIT-ADS-Web/vivoupdater"
-	"github.com/OIT-ADS-Web/vivoupdater/kafka"
 	"github.com/Shopify/sarama"
 )
 
@@ -26,7 +25,7 @@ func init() {
 	}
 	fmt.Printf("pwd=%v\n", dir)
 
-	tlsConfig, err := kafka.NewTLSConfig(
+	tlsConfig, err := vivoupdater.NewTLSConfig(
 		fmt.Sprintf("%s", os.Getenv("CLIENT_CERT")),
 		fmt.Sprintf("%s", os.Getenv("CLIENT_KEY")),
 		fmt.Sprintf("%s", os.Getenv("SERVER_CERT")))
@@ -48,12 +47,12 @@ func init() {
 	config.Net.TLS.Config = tlsConfig
 	config.Net.TLS.Enable = true
 	config.Version = sarama.V1_0_0_0
-
 }
 
 func main() {
 	flag.Parse()
 
+	// just making a sync producer - not using 'producer.go'
 	producer, err := sarama.NewSyncProducer(servers, config)
 	if err != nil {
 		log.Fatalf("%s\n", err)
@@ -66,7 +65,7 @@ func main() {
 		}
 	}()
 
-	topic := os.Getenv("TOPICS")
+	topic := os.Getenv("UPDATES_TOPIC")
 
 	num := rand.Intn(9)
 	subject := fmt.Sprintf("http://scholars.duke.edu/individual/per000000%d", num)

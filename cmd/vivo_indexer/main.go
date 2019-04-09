@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -13,44 +14,52 @@ import (
 	"github.com/gorilla/mux"
 	"gopkg.in/natefinch/lumberjack.v2"
 
-	"github.com/OIT-ADS-Web/vivoupdater"
 	"github.com/namsral/flag"
 
-	"github.com/OIT-ADS-Web/vivoupdater/config"
-	"github.com/OIT-ADS-Web/vivoupdater/kafka"
+	"github.com/OIT-ADS-Web/vivoupdater"
+	//"github.com/OIT-ADS-Web/vivoupdater/config"
+	//"github.com/OIT-ADS-Web/vivoupdater/indexer"
+	//"github.com/OIT-ADS-Web/vivoupdater/kafka"
 )
 
 func init() {
-	flag.Var(&config.BootstrapFlag, "bootstrap_servers", "comma-separated list of kafka servers")
-	flag.Var(&config.Topics, "topics", "comma-separated list of topics")
-	flag.StringVar(&config.ClientCert, "client_cert", "", "client ssl cert (*.pem file location)")
-	flag.StringVar(&config.ClientKey, "client_key", "", "client ssl key (*.pem file location)")
-	flag.StringVar(&config.ServerCert, "server_cert", "", "server ssl cert (*.pem file location)")
-	flag.StringVar(&config.ClientId, "client_id", "", "client (consumer) id to send to kafka")
-	flag.StringVar(&config.GroupName, "group_name", "", "client (consumer) group name to send to kafka")
+	flag.Var(&vivoupdater.BootstrapFlag, "bootstrap_servers", "comma-separated list of kafka servers")
+	//flag.Var(&config.Topics, "topics", "comma-separated list of topics")
+	flag.StringVar(&vivoupdater.ClientCert, "client_cert", "", "client ssl cert (*.pem file location)")
+	flag.StringVar(&vivoupdater.ClientKey, "client_key", "", "client ssl key (*.pem file location)")
+	flag.StringVar(&vivoupdater.ServerCert, "server_cert", "", "server ssl cert (*.pem file location)")
+	flag.StringVar(&vivoupdater.ClientId, "client_id", "", "client (consumer) id to send to kafka")
+	flag.StringVar(&vivoupdater.GroupName, "group_name", "", "client (consumer) group name to send to kafka")
 
-	flag.StringVar(&config.RedisUrl, "redis_url", "localhost:6379", "host:port of the redis instance")
-	flag.StringVar(&config.RedisChannel, "redis_channel", "development", "name of the redis channel to subscribe to")
-	flag.IntVar(&config.MaxRedisAttempts, "max_redis_attempts", 3, "maximum number of consecutive attempts to connect to redis before exiting")
-	flag.IntVar(&config.RedisRetryInterval, "redis_retry_interval", 5, "number of seconds to wait before reconnecting to redis, reconnects will back off at a rate of num attempts * interval")
-	flag.StringVar(&config.VivoIndexerUrl, "vivo_indexer_url", "http://localhost:8080/searchService/updateUrisInSearch", "full url of the incremental indexing service")
-	flag.StringVar(&config.VivoEmail, "vivo_email", "", "email address of vivo user authorized to re-index")
-	flag.StringVar(&config.VivoPassword, "vivo_password", "", "password for vivo user authorized to re-index")
+	flag.StringVar(&vivoupdater.MetricsTopic, "metrics_topic", "", "metrics kafka topic")
+	flag.StringVar(&vivoupdater.UpdatesTopic, "updates_topic", "", "updates kafka topic")
 
-	flag.StringVar(&config.WidgetsIndexerBaseUrl, "widgets_indexer_base_url", "http://localhost:8080/widgets/updates", "base url of the incremental indexing service -  must be expanded in code to differentiate /person vs. /org")
+	// FIXME: do something like this?
+	//flag.IntVar(&config.MaxKafkaAttempts, "max_kafak_attempts", 3, "maximum number of consecutive attempts to connect to kafka before exiting")
+	//flag.IntVar(&config.KafkaRetryInterval, "kafka_retry_interval", 5, "number of seconds to wait before reconnecting to kafka, reconnects will back off at a rate of num attempts * interval")
 
-	flag.StringVar(&config.WidgetsUser, "widgets_user", "", "email address of vivo user authorized to re-index")
-	flag.StringVar(&config.WidgetsPassword, "widgets_password", "", "password for vivo user authorized to re-index")
-	flag.IntVar(&config.BatchSize, "batch_size", 200, "maximum number of uris to send to the indexer at one time")
-	flag.IntVar(&config.BatchTimeout, "batch_timeout", 10, "maximum number of seconds to wait before sending a partial batch")
-	flag.StringVar(&config.NotificationSmtp, "notification_smtp", "", "smtp server to use for notifications")
-	flag.StringVar(&config.NotificationFrom, "notification_from", "", "from address to use for notifications")
-	flag.StringVar(&config.NotificationEmail, "notification_email", "", "email address to use for notifications")
+	flag.StringVar(&vivoupdater.RedisUrl, "redis_url", "localhost:6379", "host:port of the redis instance")
+	flag.StringVar(&vivoupdater.RedisChannel, "redis_channel", "development", "name of the redis channel to subscribe to")
+	flag.IntVar(&vivoupdater.MaxRedisAttempts, "max_redis_attempts", 3, "maximum number of consecutive attempts to connect to redis before exiting")
+	flag.IntVar(&vivoupdater.RedisRetryInterval, "redis_retry_interval", 5, "number of seconds to wait before reconnecting to redis, reconnects will back off at a rate of num attempts * interval")
+	flag.StringVar(&vivoupdater.VivoIndexerUrl, "vivo_indexer_url", "http://localhost:8080/searchService/updateUrisInSearch", "full url of the incremental indexing service")
+	flag.StringVar(&vivoupdater.VivoEmail, "vivo_email", "", "email address of vivo user authorized to re-index")
+	flag.StringVar(&vivoupdater.VivoPassword, "vivo_password", "", "password for vivo user authorized to re-index")
 
-	flag.StringVar(&config.LogFile, "log_file", "vivoupdater.log", "rolling log file location")
-	flag.IntVar(&config.LogMaxSize, "log_max_size", 500, "max size (in mb) of log file")
-	flag.IntVar(&config.LogMaxBackups, "log_max_backups", 10, "maximum number of old log files to retain")
-	flag.IntVar(&config.LogMaxAge, "log_max_age", 28, "maximum number of days to keep log file")
+	flag.StringVar(&vivoupdater.WidgetsIndexerBaseUrl, "widgets_indexer_base_url", "http://localhost:8080/widgets/updates", "base url of the incremental indexing service -  must be expanded in code to differentiate /person vs. /org")
+
+	flag.StringVar(&vivoupdater.WidgetsUser, "widgets_user", "", "email address of vivo user authorized to re-index")
+	flag.StringVar(&vivoupdater.WidgetsPassword, "widgets_password", "", "password for vivo user authorized to re-index")
+	flag.IntVar(&vivoupdater.BatchSize, "batch_size", 200, "maximum number of uris to send to the indexer at one time")
+	flag.IntVar(&vivoupdater.BatchTimeout, "batch_timeout", 10, "maximum number of seconds to wait before sending a partial batch")
+	flag.StringVar(&vivoupdater.NotificationSmtp, "notification_smtp", "", "smtp server to use for notifications")
+	flag.StringVar(&vivoupdater.NotificationFrom, "notification_from", "", "from address to use for notifications")
+	flag.Var(&vivoupdater.NotificationEmail, "notification_email", "email address to use for notifications")
+
+	flag.StringVar(&vivoupdater.LogFile, "log_file", "vivoupdater.log", "rolling log file location")
+	flag.IntVar(&vivoupdater.LogMaxSize, "log_max_size", 500, "max size (in mb) of log file")
+	flag.IntVar(&vivoupdater.LogMaxBackups, "log_max_backups", 10, "maximum number of old log files to retain")
+	flag.IntVar(&vivoupdater.LogMaxAge, "log_max_age", 28, "maximum number of days to keep log file")
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
@@ -73,55 +82,70 @@ func main() {
 
 	flag.Parse()
 
-	var log = log.New(os.Stdout, "[vivo-updater]", log.LstdFlags)
+	logger := log.New(os.Stdout, "[vivo-updater]", log.LstdFlags)
 
-	log.SetOutput(&lumberjack.Logger{
-		Filename:   config.LogFile,
-		MaxSize:    config.LogMaxSize,
-		MaxBackups: config.LogMaxBackups,
-		MaxAge:     config.LogMaxAge,
+	logger.SetOutput(&lumberjack.Logger{
+		Filename:   vivoupdater.LogFile,
+		MaxSize:    vivoupdater.LogMaxSize,
+		MaxBackups: vivoupdater.LogMaxBackups,
+		MaxAge:     vivoupdater.LogMaxAge,
 	})
 
-	ctx := vivoupdater.Context{
-		Notice: vivoupdater.Notification{
-			Smtp: config.NotificationSmtp,
-			From: config.NotificationFrom,
-			To:   []string{config.NotificationEmail}},
-		Logger: log,
-		Quit:   make(chan bool)}
+	kafkaConfig := &vivoupdater.KafkaSubscriber{
+		Brokers:    vivoupdater.BootstrapFlag,
+		Topic:      vivoupdater.UpdatesTopic,
+		ClientCert: vivoupdater.ClientCert,
+		ClientKey:  vivoupdater.ClientKey,
+		ServerCert: vivoupdater.ServerCert,
+		ClientID:   vivoupdater.ClientId,
+		GroupName:  vivoupdater.GroupName,
+	}
 
-	// channel
-	updates := kafka.UpdateSubscriber{
-		Brokers:    config.BootstrapFlag,
-		Topics:     config.Topics,
-		ClientCert: config.ClientCert,
-		ClientKey:  config.ClientKey,
-		ServerCert: config.ServerCert,
-		ClientID:   config.ClientId,
-		GroupName:  config.GroupName}.Subscribe(ctx)
+	vivoupdater.SetSubscriber(kafkaConfig)
+	// long-lived global producer
+	// NOTE: would need to use this to send to other topics
+	//producer := vivoupdater.GetProducer()
+	err := vivoupdater.SetupProducer(kafkaConfig)
 
-	batches := vivoupdater.UriBatcher{
-		BatchSize:    config.BatchSize,
-		BatchTimeout: time.Duration(config.BatchTimeout) * time.Second}.Batch(ctx, updates)
+	if err != nil {
+		logger.Println("could not establish a kafka async producer")
+	}
 
-	vivoIndexer := vivoupdater.VivoIndexer{
-		Url:      config.VivoIndexerUrl,
-		Username: config.VivoEmail,
-		Password: config.VivoPassword}
+	consumer := vivoupdater.GetSubscriber()
+	context := context.Background()
 
-	widgetsIndexer := vivoupdater.WidgetsIndexer{
-		Url:      config.WidgetsIndexerBaseUrl,
-		Username: config.WidgetsUser,
-		Password: config.WidgetsPassword}
+	for true {
+		updates := consumer.Subscribe(context, logger)
 
-	for b := range batches {
-		go vivoupdater.IndexBatch(ctx, vivoIndexer, b)
-		go vivoupdater.IndexBatch(ctx, widgetsIndexer, b)
+		batches := vivoupdater.UriBatcher{
+			BatchSize:    vivoupdater.BatchSize,
+			BatchTimeout: time.Duration(vivoupdater.BatchTimeout) * time.Second}.Batch(updates)
+
+		vivoIndexer := vivoupdater.VivoIndexer{
+			Url:      vivoupdater.VivoIndexerUrl,
+			Username: vivoupdater.VivoEmail,
+			Password: vivoupdater.VivoPassword}
+
+		widgetsIndexer := vivoupdater.WidgetsIndexer{
+			Url:      vivoupdater.WidgetsIndexerBaseUrl,
+			Username: vivoupdater.WidgetsUser,
+			Password: vivoupdater.WidgetsPassword}
+
+		for b := range batches {
+			go vivoupdater.IndexBatch(vivoIndexer, b, logger)
+			go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
+		}
+
+		// do this or let kafka handle?
+		logger.Println("*** Kafka consumer stopped. Wait 5 minutes and try again.")
+		time.Sleep(time.Minute * 5)
+		//time.Sleep(time.Second * 10)
+		logger.Println("*** Start kafka consumer again.")
 	}
 
 	//loggedRouter := handlers.CombinedLoggingHandler(os.Stdout, router)
 	log.Fatal(http.ListenAndServe(":8484", router))
 
-	<-ctx.Quit
-	ctx.Logger.Println("Exiting...")
+	//<-ctx.Quit
+	//ctx.Logger.Println("Exiting...")
 }

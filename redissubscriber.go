@@ -1,41 +1,46 @@
-package redis
+package vivoupdater
 
+// NOTE: not using redis anymore
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
 )
 
-type UpdateSubscriber struct {
+type RedisSubscriber struct {
 	RedisUrl           string
 	RedisChannel       string
 	MaxConnectAttempts int
 	RetryInterval      int
 }
 
-func (us UpdateSubscriber) Subscribe(ctx Context) chan UpdateMessage {
+func (us RedisSubscriber) Subscribe(ctx context.Context, logger *log.Logger) chan UpdateMessage {
 	updates := make(chan UpdateMessage)
+	_, cancel := context.WithCancel(ctx)
 	go func() {
 		failedAttempts := 0
 		for {
-			ctx.Logger.Println("Connecting to Redis at " + us.RedisUrl)
+			logger.Println("Connecting to Redis at " + us.RedisUrl)
 			c, err := redis.Dial("tcp", us.RedisUrl)
 			if err != nil {
 				failedAttempts += 1
 				if failedAttempts > us.MaxConnectAttempts {
 					close(updates)
-					ctx.handleError("Max redis connection attempts exceeded", err, true)
+					logger.Printf("Max redis connection attempts exceeded: %v\n", err)
+					cancel()
 					break
 				}
-				ctx.handleError("Could not connect to Redis", err, false)
+				logger.Printf("Could not connect to Redis: %v\n", err)
 				time.Sleep(time.Duration(us.RetryInterval*failedAttempts) * time.Second)
 				continue
 			}
 			failedAttempts = 0
 			psc := redis.PubSubConn{c}
 			psc.Subscribe(us.RedisChannel)
-			ctx.Logger.Println("Subscribed to channel " + us.RedisChannel)
+			logger.Println("Subscribed to channel " + us.RedisChannel)
 
 		ReceiveLoop:
 			for {
@@ -45,7 +50,7 @@ func (us UpdateSubscriber) Subscribe(ctx Context) chan UpdateMessage {
 					json.Unmarshal(v.Data, &m)
 					updates <- m
 				case error:
-					ctx.handleError("Lost connection to Redis", v, false)
+					logger.Printf("Lost connection to Redis: %v\n", v)
 					psc.Close()
 					time.Sleep(time.Duration(us.RetryInterval) * time.Second)
 					failedAttempts += 1
