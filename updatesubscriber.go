@@ -1,5 +1,6 @@
 package vivoupdater
 
+/*
 import (
 	"encoding/json"
 	"github.com/garyburd/redigo/redis"
@@ -55,3 +56,4 @@ func (us UpdateSubscriber) Subscribe(ctx Context) chan UpdateMessage {
 	}()
 	return updates
 }
+*/

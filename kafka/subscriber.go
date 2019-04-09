@@ -8,14 +8,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 	"time"
 
 	vu "github.com/OIT-ADS-Web/vivoupdater"
 	"github.com/Shopify/sarama"
 )
 
-/*
 var Subscriber *KafkaSubscriber
 
 func GetSubscriber() *KafkaSubscriber {
@@ -25,7 +23,6 @@ func GetSubscriber() *KafkaSubscriber {
 func SetSubscriber(s *KafkaSubscriber) {
 	Subscriber = s
 }
-*/
 
 // TODO: get from vault
 func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config, error) {
@@ -53,13 +50,20 @@ func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config
 }
 
 type ConsumerGroupHandler struct {
-	Context vu.Context
+	Context context.Context
+	Logger  *log.Logger
 	Updates chan vu.UpdateMessage
 }
 
-func (ConsumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error { return nil }
+func (c ConsumerGroupHandler) Setup(sess sarama.ConsumerGroupSession) error {
+	c.Logger.Printf("SETUP:%s\n", sess.MemberID())
+	return nil
+}
 
-func (ConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
+func (c ConsumerGroupHandler) Cleanup(sess sarama.ConsumerGroupSession) error {
+	c.Logger.Printf("CLEANUP:%s\n", sess.MemberID())
+	return nil
+}
 
 func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 	claim sarama.ConsumerGroupClaim) error {
@@ -69,17 +73,17 @@ func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 		err := json.Unmarshal(msg.Value, &um)
 
 		if err != nil {
-			log.Printf("error: %+v\n", err)
+			c.Logger.Printf("error: %+v\n", err)
 		}
+		c.Logger.Printf("GOT RECORD!: %v\n", um.Triple.Subject)
+		// send to batcher ??
 		c.Updates <- um
-		// if not succesful ? don't mark offset ??
-		// used to be consumer.MarkOffset(msg, "metadata")
 		sess.MarkMessage(msg, "")
 	}
 	return nil
 }
 
-type UpdateSubscriber struct {
+type KafkaSubscriber struct {
 	Brokers    []string
 	Topics     []string
 	ClientCert string
@@ -89,12 +93,13 @@ type UpdateSubscriber struct {
 	GroupName  string
 }
 
-func startConsumer(ks UpdateSubscriber, handler ConsumerGroupHandler) {
-	sarama.Logger = log.New(os.Stdout, "[samara] ", log.LstdFlags)
+func StartConsumer(ks KafkaSubscriber, handler ConsumerGroupHandler) {
+	sarama.Logger = handler.Logger
+
 	tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
 
 	if err != nil {
-		log.Fatal(err)
+		handler.Logger.Fatal(err)
 	}
 
 	consumerConfig := sarama.NewConfig()
@@ -115,34 +120,31 @@ func startConsumer(ks UpdateSubscriber, handler ConsumerGroupHandler) {
 	// set a max wait time??
 	//consumerConfig.Consumer.MaxWaitTime = time.Duration(305000 * time.Millisecond)
 	consumerConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
-
-	// go context, not vivoupdater.Context
-	context := context.Background()
+	//consumerConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
 	client, err := sarama.NewClient(ks.Brokers, consumerConfig)
 	if err != nil {
-		log.Fatalf("CLIENT ERROR:%v\n", err)
+		handler.Logger.Fatalf("CLIENT ERROR:%v\n", err)
 	}
 	defer func() { _ = client.Close() }()
 
 	// Start a new consumer group
 	group, err := sarama.NewConsumerGroupFromClient(ks.GroupName, client)
 	if err != nil {
-		log.Printf("GROUP ERROR:%v\n", err)
+		handler.Logger.Printf("GROUP ERROR:%v\n", err)
 	}
 	defer func() { _ = group.Close() }()
 
-	err = group.Consume(context, ks.Topics, handler)
+	err = group.Consume(handler.Context, ks.Topics, handler)
 	if err != nil {
-		log.Printf("ERR:%v\n", err)
+		handler.Logger.Printf("CONSUME ERR:%v\n", err)
 	}
-	defer close(handler.Updates)
 }
 
-func (ks UpdateSubscriber) Subscribe(ctx vu.Context) chan vu.UpdateMessage {
+//https://dave.cheney.net/tag/logging
+func (ks KafkaSubscriber) Subscribe(ctx context.Context, logger *log.Logger) chan vu.UpdateMessage {
 	updates := make(chan vu.UpdateMessage)
-	handler := ConsumerGroupHandler{Updates: updates, Context: ctx}
-	go func() {
-		startConsumer(ks, handler)
-	}()
+	handler := ConsumerGroupHandler{Context: ctx, Logger: logger, Updates: updates}
+	// need to use channel
+	go StartConsumer(ks, handler)
 	return updates
 }

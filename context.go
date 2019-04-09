@@ -25,7 +25,7 @@ func (ctx Context) Done() <-chan struct{} {
 }
 */
 
-func (ctx Context) handleError(desc string, err error, fatal bool) {
+func (ctx Context) HandleError(desc string, err error, fatal bool) {
 	ctx.Logger.Println(desc)
 	ctx.Logger.Println(err)
 	if fatal {

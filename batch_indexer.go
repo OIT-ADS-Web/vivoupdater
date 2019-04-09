@@ -1,17 +1,21 @@
 package vivoupdater
 
-import ("log")
+import (
+	"log"
+)
 
 type BatchIndexer interface {
 	Name() string
 	Index(b map[string]bool, logger *log.Logger) (map[string]bool, error)
 }
 
-func IndexBatch(ctx Context, i BatchIndexer, b map[string]bool) {
-	ib, err := i.Index(b, ctx.Logger)
+func IndexBatch(i BatchIndexer, b map[string]bool, logger *log.Logger) {
+	ib, err := i.Index(b, logger)
+
 	if err != nil {
-		ctx.handleError("Indexing Error", err, true)
+		// notification needs to happen here - or something
+		logger.Printf("Indexing Error: %v\n", err)
 	}
-	ctx.Logger.Printf("%v uris indexed by %s", len(ib), i.Name())
-	ctx.Logger.Printf("%v", ib)
+	logger.Printf("%v uris indexed by %s", len(ib), i.Name())
+	logger.Printf("%v", ib)
 }

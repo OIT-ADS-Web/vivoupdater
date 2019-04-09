@@ -1,5 +1,6 @@
 package vivoupdater
 
+/*
 import (
 	"encoding/json"
 	"log"
@@ -117,3 +118,4 @@ func (wi WidgetsIndexer) Index(batch map[string]bool, logger *log.Logger) (map[s
 
 	return batch, nil
 }
+*/

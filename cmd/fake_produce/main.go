@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"strings"
 
@@ -67,14 +68,17 @@ func main() {
 
 	topic := os.Getenv("TOPICS")
 
+	num := rand.Intn(9)
+	subject := fmt.Sprintf("http://scholars.duke.edu/individual/per000000%d", num)
+
 	um := vivoupdater.UpdateMessage{
 		Type:  "update",
 		Phase: "destination",
 		Name:  "urn:x-arq:UnionGraph",
 		Triple: vivoupdater.Triple{
-			Subject:   "http://scholars.duke.edu/individual/per0000001",
+			Subject:   subject,
 			Predicate: "rdfs:label",
-			Object:    "Lester the Tester"},
+			Object:    fmt.Sprintf("Lester the Tester #%d", num)},
 	}
 
 	val, err := json.Marshal(um)
@@ -91,6 +95,7 @@ func main() {
 		log.Fatalf("%s\n", err)
 		log.Printf("FAILED to send message: %s\n", err)
 	} else {
+		log.Printf("subject=%s\n", subject)
 		log.Printf("> message sent to partition %d at offset %d\n", partition, offset)
 	}
 

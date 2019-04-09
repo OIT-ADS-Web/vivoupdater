@@ -3,6 +3,6 @@
 cd cmd/vivo_indexer
 go build
 cd ../../
-cd cmd/test_produce
+cd cmd/fake_produce
 go build
 cd ../../
