@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"time"
 
@@ -25,11 +24,35 @@ func SetSubscriber(s *KafkaSubscriber) {
 	Subscriber = s
 }
 
-// TODO: get from vault
-func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config, error) {
+func SetupConsumer(ks *KafkaSubscriber) error {
+	/*tlsConfig, err := NewTLSConfig(ks)
+	if err != nil {
+		return err
+	}
+
+	producerConfig := sarama.NewConfig()
+	producerConfig.ClientID = ks.ClientID
+	producerConfig.Version = sarama.V1_0_0_0
+	producerConfig.Net.TLS.Enable = true
+	producerConfig.Net.TLS.Config = tlsConfig
+
+	producer, err := sarama.NewAsyncProducer(ks.Brokers, producerConfig)
+	if err != nil {
+		return err
+	}
+	*/
+	SetSubscriber(ks)
+	return nil
+}
+
+// TODO: get from vault (see below)
+func NewTLSConfig(ks *KafkaSubscriber) (*tls.Config, error) {
 	tlsConfig := tls.Config{}
 	// Load client cert
-	cert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
+	// NOTE: this will need to change to read text
+	//cert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
+	cert, err := tls.X509KeyPair([]byte(ks.ClientCert), []byte(ks.ClientKey))
+
 	if err != nil {
 		fmt.Println("error reading cert")
 		return &tlsConfig, err
@@ -37,7 +60,9 @@ func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config
 	tlsConfig.Certificates = []tls.Certificate{cert}
 
 	// Load CA cert - should get bytes from vault
-	caCert, err := ioutil.ReadFile(caCertFile)
+	//caCert, err := ioutil.ReadFile(caCertFile)
+	caCert := []byte(ks.ServerCert)
+
 	if err != nil {
 		fmt.Println("error reading caCert")
 		return &tlsConfig, err
@@ -48,6 +73,59 @@ func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config
 
 	tlsConfig.BuildNameToCertificate()
 	return &tlsConfig, err
+}
+
+func GetCertsFromVault(env string, config *VaultConfig, kafka *KafkaSubscriber) {
+	if len(config.Token) == 0 {
+		err := FetchToken(config)
+		if err != nil {
+			fmt.Printf("Unable to fetch token from vault for role_id and secret_id:\n  %s\n", err)
+		}
+	}
+	//Brokers:   servers,
+	//ClientID:  vivoupdater.ClientId,
+	//GroupName: vivoupdater.GroupName,
+
+	secrets := SecretsMap(env)
+	//fmt.Printf("Vault secrets: %s\n", secrets)
+	// NOTE: reads values 'into' a struct
+	var values Secrets
+	//NOTE: order matters, needs token
+
+	// maybe this could be a copy -> into -> method squash
+	//kafkaConfig.ClientCert = values.Kafka.ClientCert
+	//kafkaConfig.ClientKey = values.Kafka.ClientKey
+	//kafkaConfig.ServerCert = values.Kafka.ServerCert
+
+	/*
+		path := fmt.Sprintf("secret/apps/scholars/%s/kafka", env)
+		//fmt.Printf("Vault path: %s\n", path)
+		var kafka *KafkaSubscriber
+		err := FetchValues(config, path, kafka)
+	*/
+	//var kafka *KafkaSubscriber
+	err := FetchSecrets(config, secrets, &values)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//kafka.Brokers = BootstrapFlag
+	//kafka.ClientID = ClientId
+	//kafka.GroupName = GroupName
+	kafka.ClientCert = values.KafkaClientCert
+	kafka.ClientKey = values.KafkaClientKey
+	kafka.ServerCert = values.KafkaServerCert
+
+	/*
+		if err != nil {
+			fmt.Println("Error fetching values from vault. Waiting 30 seconds before stopping.")
+			fmt.Println(err)
+			time.Sleep(time.Second * 30)
+		}
+	*/
+
+	//SetupSubscriber(kafka)
+	//SetupProducer(kafka)
 }
 
 type ConsumerGroupHandler struct {
@@ -104,7 +182,8 @@ type KafkaSubscriber struct {
 func StartConsumer(ks KafkaSubscriber, handler ConsumerGroupHandler) {
 	sarama.Logger = handler.Logger
 
-	tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
+	//tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
+	tlsConfig, err := NewTLSConfig(&ks)
 
 	if err != nil {
 		handler.Logger.Fatal(err)
@@ -179,7 +258,7 @@ func SetProducer(p sarama.AsyncProducer) {
 }
 
 func SetupProducer(ks *KafkaSubscriber) error {
-	tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
+	tlsConfig, err := NewTLSConfig(ks)
 	if err != nil {
 		return err
 	}

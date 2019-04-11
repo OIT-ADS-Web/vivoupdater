@@ -19,16 +19,55 @@ var config *sarama.Config
 func init() {
 	servers = strings.Split(os.Getenv("BOOTSTRAP_SERVERS"), ",")
 
-	dir, err := os.Getwd()
+	appEnv := os.Getenv("APP_ENVIRONMENT")
+	vaultApi := os.Getenv("VAULT_ENDPOINT")
+	vaultKey := os.Getenv("VAULT_KEY")
+	vaultRoleId := os.Getenv("VAULT_ROLE_ID")
+	vaultSecretId := os.Getenv("VAULT_SECRET_ID")
+
+	vaultConfig := &vivoupdater.VaultConfig{
+		Endpoint: vaultApi,
+		AppId:    vaultKey,
+		RoleId:   vaultRoleId,
+		SecretId: vaultSecretId,
+		// e.g. without Token yet
+	}
+	fmt.Printf("vault-config:%v\n", vaultConfig)
+
+	err := vivoupdater.FetchToken(vaultConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("pwd=%v\n", dir)
+	fmt.Printf("token=%v\n", vaultConfig.Token)
 
-	tlsConfig, err := vivoupdater.NewTLSConfig(
-		fmt.Sprintf("%s", os.Getenv("CLIENT_CERT")),
-		fmt.Sprintf("%s", os.Getenv("CLIENT_KEY")),
-		fmt.Sprintf("%s", os.Getenv("SERVER_CERT")))
+	kafkaConfig := &vivoupdater.KafkaSubscriber{
+		Brokers:   servers,
+		ClientID:  vivoupdater.ClientId,
+		GroupName: vivoupdater.GroupName,
+		// e.g. without ClientCert etc...
+	}
+
+	// NOTE: some other apps have secrets.properties
+	// or secrets.yaml files
+	secrets := vivoupdater.SecretsMap(appEnv)
+	fmt.Printf("Vault secrets: %s\n", secrets)
+	// NOTE: reads values 'into' a struct
+	values := &vivoupdater.Secrets{}
+	//NOTE: order matters, needs token
+	err = vivoupdater.FetchSecrets(vaultConfig, secrets, values)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("values read: %s\n", values)
+	// maybe this could be a copy -> into -> method squash
+	kafkaConfig.ClientCert = values.KafkaClientCert
+	kafkaConfig.ClientKey = values.KafkaClientKey
+	kafkaConfig.ServerCert = values.KafkaServerCert
+
+	// etc...
+	//err = vivoupdater.FetchValues(vaultConfig, path, kafkaConfig)
+	tlsConfig, err := vivoupdater.NewTLSConfig(kafkaConfig)
 
 	if err != nil {
 		log.Fatalf("could not read cert file: %v\n", err)
@@ -39,7 +78,7 @@ func init() {
 
 	config.Consumer.Return.Errors = true
 	//config.Consumer.MaxWaitTime = time.Duration(305000 * time.Millisecond)
-	config.ClientID = "rn47"
+	config.ClientID = "rn47" // TODO: config value
 
 	// offset makes a difference
 	//config.Consumer.Offsets.Initial = sarama.OffsetOldest

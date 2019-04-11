@@ -23,11 +23,22 @@ import (
 )
 
 func init() {
+	flag.StringVar(&vivoupdater.AppEnvironment, "app_environment", "development", "(development|acceptance|production)")
 	flag.Var(&vivoupdater.BootstrapFlag, "bootstrap_servers", "comma-separated list of kafka servers")
-	//flag.Var(&config.Topics, "topics", "comma-separated list of topics")
-	flag.StringVar(&vivoupdater.ClientCert, "client_cert", "", "client ssl cert (*.pem file location)")
-	flag.StringVar(&vivoupdater.ClientKey, "client_key", "", "client ssl key (*.pem file location)")
-	flag.StringVar(&vivoupdater.ServerCert, "server_cert", "", "server ssl cert (*.pem file location)")
+
+	// get these from vault
+	flag.StringVar(&vivoupdater.VaultEndpoint, "vault_endpoint", "", "vault endpoint")
+	flag.StringVar(&vivoupdater.VaultKey, "vault_key", "", "vault key")
+	flag.StringVar(&vivoupdater.VaultRoleId, "vault_role_id", "", "vault role id")
+	flag.StringVar(&vivoupdater.VaultSecretId, "vault_secret_id", "", "vault secret id")
+
+	// if no vault - get from ssl files ??
+	//if len(*vaultRoleID) == 0 && len(*vaultToken) == 0 {
+	//  flag.StringVar(&vivoupdater.ClientCert, "client_cert", "", "client ssl cert (*.pem file location)")
+	//  flag.StringVar(&vivoupdater.ClientKey, "client_key", "", "client ssl key (*.pem file location)")
+	//  flag.StringVar(&vivoupdater.ServerCert, "server_cert", "", "server ssl cert (*.pem file location)")
+	// }
+
 	flag.StringVar(&vivoupdater.ClientId, "client_id", "", "client (consumer) id to send to kafka")
 	flag.StringVar(&vivoupdater.GroupName, "group_name", "", "client (consumer) group name to send to kafka")
 
@@ -91,26 +102,43 @@ func main() {
 		MaxAge:     vivoupdater.LogMaxAge,
 	})
 
-	kafkaConfig := &vivoupdater.KafkaSubscriber{
-		Brokers:    vivoupdater.BootstrapFlag,
-		Topic:      vivoupdater.UpdatesTopic,
-		ClientCert: vivoupdater.ClientCert,
-		ClientKey:  vivoupdater.ClientKey,
-		ServerCert: vivoupdater.ServerCert,
-		ClientID:   vivoupdater.ClientId,
-		GroupName:  vivoupdater.GroupName,
+	vaultConfig := &vivoupdater.VaultConfig{
+		Endpoint: vivoupdater.VaultEndpoint,
+		AppId:    vivoupdater.VaultKey,
+		RoleId:   vivoupdater.VaultRoleId,
+		SecretId: vivoupdater.VaultSecretId,
+		// e.g. without Token yet
 	}
+
+	fmt.Printf("vault-config:%v\n", vaultConfig)
+	err := vivoupdater.FetchToken(vaultConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("token=%v\n", vaultConfig.Token)
+
+	kafkaConfig := &vivoupdater.KafkaSubscriber{
+		Brokers: vivoupdater.BootstrapFlag,
+		Topic:   vivoupdater.UpdatesTopic,
+		// NOTE: leaving all cert fields blank
+		ClientID:  vivoupdater.ClientId,
+		GroupName: vivoupdater.GroupName,
+	}
+	vivoupdater.GetCertsFromVault(vivoupdater.AppEnvironment,
+		vaultConfig, kafkaConfig)
 
 	vivoupdater.SetSubscriber(kafkaConfig)
 	// long-lived global producer
 	// NOTE: would need to use this to send to other topics
 	//producer := vivoupdater.GetProducer()
-	err := vivoupdater.SetupProducer(kafkaConfig)
+	err = vivoupdater.SetupProducer(kafkaConfig)
 
 	if err != nil {
 		logger.Println("could not establish a kafka async producer")
 	}
 
+	// note same subscriber we 'set' above
 	consumer := vivoupdater.GetSubscriber()
 	context := context.Background()
 

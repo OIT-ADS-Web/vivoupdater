@@ -60,10 +60,39 @@ type ApplicationConfig struct {
 	NotificationSmtp  string
 	NotificationFrom  string
 	NotificationEmail string
+	Enviroment        string
 	Kafka             KafkaConfig
 	Widgets           WidgetsConfig
 	Vivo              VivoConfig
 	Log               LoggingConfig
+}
+
+type VaultConfig struct {
+	Endpoint string
+	RoleId   string
+	SecretId string
+	AppId    string
+	Token    string
+}
+
+type Kafka struct {
+	ClientKey  string `mapstructure:"kafka.clientKey"`
+	ClientCert string `mapstructure:"kafka.clientCert"`
+	ServerCert string `mapstructure:"kafka.serverCert"`
+}
+type Secrets struct {
+	//Kafka
+	KafkaClientKey  string `mapstructure:"kafka_clientKey"`
+	KafkaClientCert string `mapstructure:"kafka_clientCert"`
+	KafkaServerCert string `mapstructure:"kafka_serverCert"`
+}
+
+func SecretsMap(appEnv string) map[string]string {
+	secrets := make(map[string]string, 3)
+	secrets["kafka.clientKey"] = fmt.Sprintf("apps/scholars/%s/kafka/clientKey", appEnv)
+	secrets["kafka.clientCert"] = fmt.Sprintf("apps/scholars/%s/kafka/clientCert", appEnv)
+	secrets["kafka.serverCert"] = fmt.Sprintf("apps/scholars/%s/kafka/serverCert", appEnv)
+	return secrets
 }
 
 // redis
@@ -85,6 +114,7 @@ var WidgetsPassword string
 // misc
 var BatchSize int
 var BatchTimeout int
+var AppEnvironment string
 var NotificationSmtp string
 var NotificationFrom string
 var NotificationEmail CSV
@@ -101,11 +131,19 @@ var BootstrapFlag CSV
 //var Topics CSV
 var UpdatesTopic string
 var MetricsTopic string
+
 var ClientCert string
 var ClientKey string
 var ServerCert string
+
 var ClientId string
 var GroupName string
+
+// vault
+var VaultEndpoint string
+var VaultKey string
+var VaultRoleId string
+var VaultSecretId string
 
 // String is the method to format the flag's value, part of the flag.Value interface.
 // The String method's output will be used in diagnostics.
