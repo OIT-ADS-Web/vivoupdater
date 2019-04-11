@@ -54,7 +54,11 @@ func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage) chan
 					batch = make(map[string]bool, ub.BatchSize)
 				}
 			case <-ctx.Done():
-				Notifier.DoSend("vivoupdater batcher context cancelled", ctx.Err())
+				err := ctx.Err()
+				notifier := GetNotifier()
+				notifier.DoSend("vivoupdater batcher context cancelled", err)
+				// panic here??? not sure
+				panic(err)
 			}
 		}
 	}()

@@ -119,15 +119,16 @@ type ConsumerGroupHandler struct {
 }
 
 func (c ConsumerGroupHandler) Setup(sess sarama.ConsumerGroupSession) error {
-	c.Logger.Printf("SETUP:%s\n", sess.MemberID())
+	c.Logger.Printf("Consumer Setup callback:%s\n", sess.MemberID())
 	return nil
 }
 
 func (c ConsumerGroupHandler) Cleanup(sess sarama.ConsumerGroupSession) error {
-	c.Logger.Printf("CLEANUP:%s\n", sess.MemberID())
+	c.Logger.Printf("Consumer Cleanup callback:%s\n", sess.MemberID())
 	return nil
 }
 
+// https://github.com/Shopify/sarama/issues/1192
 func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 	claim sarama.ConsumerGroupClaim) error {
 
@@ -148,9 +149,6 @@ func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 			notifier := GetNotifier()
 			notifier.DoSend("Kafka Subscriber shutdown via sarama Context", err)
 			return nil
-			// is this necessary - or will it pass down to children context?
-			//case <-c.Context.Done():
-			//	return nil
 		}
 	}
 }
@@ -165,7 +163,7 @@ type KafkaSubscriber struct {
 	GroupName  string
 }
 
-func StartConsumer(ks KafkaSubscriber, handler ConsumerGroupHandler) error {
+func StartConsumer(ctx context.Context, ks KafkaSubscriber, handler ConsumerGroupHandler) error {
 	sarama.Logger = handler.Logger
 
 	tlsConfig, err := NewTLSConfig(&ks)
@@ -213,41 +211,29 @@ func StartConsumer(ks KafkaSubscriber, handler ConsumerGroupHandler) error {
 	// CONSUME ERR:kafka server:
 	// "A rebalance for the group is in progress. Please re-join the group.
 	// Closing Client, Error while closing connection to broker i/o timeout"
-	err = group.Consume(handler.Context, []string{ks.Topic}, handler)
+	err = group.Consume(ctx, []string{ks.Topic}, handler)
 	if err != nil {
+		// NOTE: sarama example panics here
 		handler.Logger.Printf("CONSUME ERR:%v\n", err)
-		// NOTE: not sure this actually works
-		handler.Cancel()
 		return err
 	}
 	return nil
 }
 
 //https://dave.cheney.net/tag/logging
-func (ks KafkaSubscriber) Subscribe(ctx context.Context, logger *log.Logger) chan UpdateMessage {
+func (ks KafkaSubscriber) Subscribe(ctx context.Context,
+	logger *log.Logger) chan UpdateMessage {
+	// NOTE: need to use channel to send to batcher
 	updates := make(chan UpdateMessage)
 
-	cancellable, cancel := context.WithCancel(ctx)
-	handler := ConsumerGroupHandler{Context: cancellable,
-		Logger:  logger,
-		Updates: updates,
-		Cancel:  cancel}
-	// need to use channel to send to batcher
+	handler := ConsumerGroupHandler{Logger: logger, Updates: updates}
 	go func() {
 		// not sure if this will catch consumer rebalance error or not
-		err := StartConsumer(ks, handler)
+		err := StartConsumer(ctx, ks, handler)
 		if err != nil {
-			//logger.Fatalf("start-consumer error: %v\n", err)
 			logger.Printf("start-consumer error: %v\n", err)
-			// tried cancel() - doesn't seem to do anything
+			panic(err)
 		}
-		// for {
-		//	  select {
-		//      case <- handler.Context.Done():
-		//         close(updates)
-		//         cancel()
-		// }
-		//}
 	}()
 	return updates
 }

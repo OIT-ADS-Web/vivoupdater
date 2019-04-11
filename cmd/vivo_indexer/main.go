@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -118,7 +119,7 @@ func main() {
 	kafkaConfig := &vivoupdater.KafkaSubscriber{
 		Brokers: vivoupdater.BootstrapFlag,
 		Topic:   vivoupdater.UpdatesTopic,
-		// NOTE: leaving all cert fields blank
+		// e.g. all cert fields blank
 		ClientID:  vivoupdater.ClientId,
 		GroupName: vivoupdater.GroupName,
 	}
@@ -127,8 +128,6 @@ func main() {
 
 	vivoupdater.SetSubscriber(kafkaConfig)
 	// long-lived global producer
-	// NOTE: would need to use this to send to other topics
-	//producer := vivoupdater.GetProducer()
 	err = vivoupdater.SetupProducer(kafkaConfig)
 
 	if err != nil {
@@ -140,9 +139,28 @@ func main() {
 	ctx := context.Background()
 
 	cancellable, cancel := context.WithCancel(ctx)
-	// TODO:? not sure about this
+	// TODO: is this the correct usage of context cancel?
+	// https://dave.cheney.net/2017/08/20/context-isnt-for-cancellation
+	// supposedly catching 'consumer rebalance' error involves
+	// checking context.Done()
+	// https://github.com/Shopify/sarama/issues/1192
 	defer cancel()
+
+	retryCount := 0
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in main", r)
+			retryCount++
+		}
+		if retryCount > 3 {
+			panic(errors.New("tried 3 times to connect to kafka, giving up"))
+		}
+	}()
+
+	// TODO: not sure for loop is necessary
 	//for true {
+	// sending cancel as parameter seems wrong
+	//updates := consumer.Subscribe(cancellable, logger, cancel)
 	updates := consumer.Subscribe(cancellable, logger)
 
 	batches := vivoupdater.UriBatcher{
@@ -159,7 +177,7 @@ func main() {
 		Username: vivoupdater.WidgetsUser,
 		Password: vivoupdater.WidgetsPassword}
 
-	// TODO: should these check for Done()?
+	// TODO: should these check for context.Done()?
 	for b := range batches {
 		go vivoupdater.IndexBatch(vivoIndexer, b, logger)
 		go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
@@ -172,8 +190,7 @@ func main() {
 	//logger.Println("*** Start kafka consumer again.")
 	//}
 
-	//loggedRouter := handlers.CombinedLoggingHandler(os.Stdout, router)
-	// TODO: is this the correct usage of context cancel?
+	// is this called ever ?
 	logger.Println("Exiting...")
 	log.Fatal(http.ListenAndServe(":8484", router))
 }
