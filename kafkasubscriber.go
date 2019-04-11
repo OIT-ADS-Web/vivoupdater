@@ -148,7 +148,7 @@ func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 			err := sess.Context().Err()
 			notifier := GetNotifier()
 			notifier.DoSend("Kafka Subscriber shutdown via sarama Context", err)
-			return nil
+			return err
 		}
 	}
 }
@@ -184,10 +184,13 @@ func StartConsumer(ctx context.Context, ks KafkaSubscriber, handler ConsumerGrou
 	consumerConfig.Net.DialTimeout = (10 * time.Second)
 	consumerConfig.Net.WriteTimeout = (10 * time.Second)
 
-	consumerConfig.Metadata.Retry.Max = 1
+	// not sure a good number of retries
+	consumerConfig.Metadata.Retry.Max = 3
 	consumerConfig.Metadata.Retry.Backoff = (10 * time.Second)
 	consumerConfig.Metadata.RefreshFrequency = (15 * time.Minute)
 
+	// set rebalance timeout?  - default 60ms
+	//consumerConfig.Consumer.Group.Rebalance.Timeout = time.Duration(6000 * time.Millisecond)
 	// set a max wait time??
 	//consumerConfig.Consumer.MaxWaitTime = time.Duration(305000 * time.Millisecond)
 	consumerConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
@@ -211,6 +214,8 @@ func StartConsumer(ctx context.Context, ks KafkaSubscriber, handler ConsumerGrou
 	// CONSUME ERR:kafka server:
 	// "A rebalance for the group is in progress. Please re-join the group.
 	// Closing Client, Error while closing connection to broker i/o timeout"
+
+	// see sarama docs of this function about rebalance, retries etc...
 	err = group.Consume(ctx, []string{ks.Topic}, handler)
 	if err != nil {
 		// NOTE: sarama example panics here
@@ -225,8 +230,8 @@ func (ks KafkaSubscriber) Subscribe(ctx context.Context,
 	logger *log.Logger) chan UpdateMessage {
 	// NOTE: need to use channel to send to batcher
 	updates := make(chan UpdateMessage)
-
 	handler := ConsumerGroupHandler{Logger: logger, Updates: updates}
+
 	go func() {
 		// not sure if this will catch consumer rebalance error or not
 		err := StartConsumer(ctx, ks, handler)

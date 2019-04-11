@@ -147,9 +147,12 @@ func main() {
 	defer cancel()
 
 	retryCount := 0
+	var updates chan vivoupdater.UpdateMessage
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("Recovered in main", r)
+			// TODO: not sure about this working
+			updates = consumer.Subscribe(cancellable, logger)
 			retryCount++
 		}
 		if retryCount > 3 {
@@ -161,7 +164,7 @@ func main() {
 	//for true {
 	// sending cancel as parameter seems wrong
 	//updates := consumer.Subscribe(cancellable, logger, cancel)
-	updates := consumer.Subscribe(cancellable, logger)
+	updates = consumer.Subscribe(cancellable, logger)
 
 	batches := vivoupdater.UriBatcher{
 		BatchSize:    vivoupdater.BatchSize,
