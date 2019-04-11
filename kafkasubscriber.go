@@ -25,27 +25,10 @@ func SetSubscriber(s *KafkaSubscriber) {
 }
 
 func SetupConsumer(ks *KafkaSubscriber) error {
-	/*tlsConfig, err := NewTLSConfig(ks)
-	if err != nil {
-		return err
-	}
-
-	producerConfig := sarama.NewConfig()
-	producerConfig.ClientID = ks.ClientID
-	producerConfig.Version = sarama.V1_0_0_0
-	producerConfig.Net.TLS.Enable = true
-	producerConfig.Net.TLS.Config = tlsConfig
-
-	producer, err := sarama.NewAsyncProducer(ks.Brokers, producerConfig)
-	if err != nil {
-		return err
-	}
-	*/
 	SetSubscriber(ks)
 	return nil
 }
 
-// TODO: get from vault (see below)
 func NewTLSConfig(ks *KafkaSubscriber) (*tls.Config, error) {
 	tlsConfig := tls.Config{}
 	// Load client cert
@@ -157,14 +140,17 @@ func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 			if err != nil {
 				return err
 			}
-			c.Logger.Printf("GOT RECORD!: %v\n", um.Triple.Subject)
+			c.Logger.Printf("uri received: %v\n", um.Triple.Subject)
 			c.Updates <- um
 			sess.MarkMessage(msg, "")
 		case <-sess.Context().Done():
 			err := sess.Context().Err()
 			notifier := GetNotifier()
-			notifier.DoSend("Kafka Subscriber shutdown", err)
+			notifier.DoSend("Kafka Subscriber shutdown via sarama Context", err)
 			return nil
+			// is this necessary - or will it pass down to children context?
+			//case <-c.Context.Done():
+			//	return nil
 		}
 	}
 }
@@ -179,14 +165,14 @@ type KafkaSubscriber struct {
 	GroupName  string
 }
 
-func StartConsumer(ks KafkaSubscriber, handler ConsumerGroupHandler) {
+func StartConsumer(ks KafkaSubscriber, handler ConsumerGroupHandler) error {
 	sarama.Logger = handler.Logger
 
-	//tlsConfig, err := NewTLSConfig(ks.ClientCert, ks.ClientKey, ks.ServerCert)
 	tlsConfig, err := NewTLSConfig(&ks)
 
 	if err != nil {
 		handler.Logger.Fatal(err)
+		return err
 	}
 
 	consumerConfig := sarama.NewConfig()
@@ -211,6 +197,7 @@ func StartConsumer(ks KafkaSubscriber, handler ConsumerGroupHandler) {
 	client, err := sarama.NewClient(ks.Brokers, consumerConfig)
 	if err != nil {
 		handler.Logger.Fatalf("CLIENT ERROR:%v\n", err)
+		return err
 	}
 	defer func() { _ = client.Close() }()
 
@@ -218,6 +205,7 @@ func StartConsumer(ks KafkaSubscriber, handler ConsumerGroupHandler) {
 	group, err := sarama.NewConsumerGroupFromClient(ks.GroupName, client)
 	if err != nil {
 		handler.Logger.Printf("GROUP ERROR:%v\n", err)
+		return err
 	}
 	defer func() { _ = group.Close() }()
 
@@ -228,9 +216,11 @@ func StartConsumer(ks KafkaSubscriber, handler ConsumerGroupHandler) {
 	err = group.Consume(handler.Context, []string{ks.Topic}, handler)
 	if err != nil {
 		handler.Logger.Printf("CONSUME ERR:%v\n", err)
-		// NOTE: not sure about this
+		// NOTE: not sure this actually works
 		handler.Cancel()
+		return err
 	}
+	return nil
 }
 
 //https://dave.cheney.net/tag/logging
@@ -243,7 +233,22 @@ func (ks KafkaSubscriber) Subscribe(ctx context.Context, logger *log.Logger) cha
 		Updates: updates,
 		Cancel:  cancel}
 	// need to use channel to send to batcher
-	go StartConsumer(ks, handler)
+	go func() {
+		// not sure if this will catch consumer rebalance error or not
+		err := StartConsumer(ks, handler)
+		if err != nil {
+			//logger.Fatalf("start-consumer error: %v\n", err)
+			logger.Printf("start-consumer error: %v\n", err)
+			// tried cancel() - doesn't seem to do anything
+		}
+		// for {
+		//	  select {
+		//      case <- handler.Context.Done():
+		//         close(updates)
+		//         cancel()
+		// }
+		//}
+	}()
 	return updates
 }
 

@@ -18,6 +18,8 @@ var config *sarama.Config
 
 func init() {
 	servers = strings.Split(os.Getenv("BOOTSTRAP_SERVERS"), ",")
+	clientId := os.Getenv("CLIENT_ID")
+	groupName := os.Getenv("GROUP_NAME")
 
 	appEnv := os.Getenv("APP_ENVIRONMENT")
 	vaultApi := os.Getenv("VAULT_ENDPOINT")
@@ -42,8 +44,8 @@ func init() {
 
 	kafkaConfig := &vivoupdater.KafkaSubscriber{
 		Brokers:   servers,
-		ClientID:  vivoupdater.ClientId,
-		GroupName: vivoupdater.GroupName,
+		ClientID:  clientId,
+		GroupName: groupName,
 		// e.g. without ClientCert etc...
 	}
 
@@ -59,14 +61,10 @@ func init() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("values read: %s\n", values)
-	// maybe this could be a copy -> into -> method squash
 	kafkaConfig.ClientCert = values.KafkaClientCert
 	kafkaConfig.ClientKey = values.KafkaClientKey
 	kafkaConfig.ServerCert = values.KafkaServerCert
 
-	// etc...
-	//err = vivoupdater.FetchValues(vaultConfig, path, kafkaConfig)
 	tlsConfig, err := vivoupdater.NewTLSConfig(kafkaConfig)
 
 	if err != nil {

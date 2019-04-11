@@ -37,7 +37,7 @@ func FetchToken(config *VaultConfig) error {
 	}
 
 	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(messageJson))
-	fmt.Printf("%v\n", resp)
+	//fmt.Printf("%v\n", resp)
 	if err != nil {
 		return err
 	}
@@ -48,10 +48,7 @@ func FetchToken(config *VaultConfig) error {
 		return decodeErr
 	}
 
-	// make sense to do this?
-
 	token := result.Auth.ClientToken
-	fmt.Printf("token=%v\n", token)
 	config.Token = token
 	return nil
 }
@@ -96,7 +93,6 @@ func FetchSecrets(config *VaultConfig, paths map[string]string,
 
 		data := VaultData{}
 		if err = json.Unmarshal(body, &data); err != nil {
-			fmt.Printf("Unable to parse response from vault. The response was %s from vault.\n", resp.Status)
 			return err
 		} else {
 			for k, v := range data.Data {
@@ -112,7 +108,6 @@ func FetchSecrets(config *VaultConfig, paths map[string]string,
 	}
 	// e.g map[kafka.clientKey] = "--- BEGIN ---"
 
-	fmt.Printf("results=%v\n", results)
 	// decode after we have all the values ...
 	msConfig := &ms.DecoderConfig{
 		DecodeHook: ms.StringToSliceHookFunc(","),
@@ -128,43 +123,3 @@ func FetchSecrets(config *VaultConfig, paths map[string]string,
 
 	return nil
 }
-
-/*
-func FetchValues(config VaultConfig, path string, obj interface{}) error {
-	url := fmt.Sprintf("%s%s", config.Endpoint, path)
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("X-Vault-Token", config.Token)
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	m := make(map[string]interface{})
-	if err = json.Unmarshal(body, &m); err != nil {
-		fmt.Printf("Unable to parse response from vault. The response was %s from vault.\n", resp.Status)
-		return err
-	} else {
-		config := &ms.DecoderConfig{
-			DecodeHook: ms.StringToSliceHookFunc(","),
-			Result:     &obj,
-		}
-		decoder, err := ms.NewDecoder(config)
-		if err != nil {
-			return err
-		}
-		if err := decoder.Decode(m["data"]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-*/

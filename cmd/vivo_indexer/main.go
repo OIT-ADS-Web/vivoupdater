@@ -110,13 +110,10 @@ func main() {
 		// e.g. without Token yet
 	}
 
-	fmt.Printf("vault-config:%v\n", vaultConfig)
 	err := vivoupdater.FetchToken(vaultConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Printf("token=%v\n", vaultConfig.Token)
 
 	kafkaConfig := &vivoupdater.KafkaSubscriber{
 		Brokers: vivoupdater.BootstrapFlag,
@@ -140,40 +137,43 @@ func main() {
 
 	// note same subscriber we 'set' above
 	consumer := vivoupdater.GetSubscriber()
-	context := context.Background()
+	ctx := context.Background()
 
-	for true {
-		updates := consumer.Subscribe(context, logger)
+	cancellable, cancel := context.WithCancel(ctx)
+	// TODO:? not sure about this
+	defer cancel()
+	//for true {
+	updates := consumer.Subscribe(cancellable, logger)
 
-		batches := vivoupdater.UriBatcher{
-			BatchSize:    vivoupdater.BatchSize,
-			BatchTimeout: time.Duration(vivoupdater.BatchTimeout) * time.Second}.Batch(updates)
+	batches := vivoupdater.UriBatcher{
+		BatchSize:    vivoupdater.BatchSize,
+		BatchTimeout: time.Duration(vivoupdater.BatchTimeout) * time.Second}.Batch(cancellable, updates)
 
-		vivoIndexer := vivoupdater.VivoIndexer{
-			Url:      vivoupdater.VivoIndexerUrl,
-			Username: vivoupdater.VivoEmail,
-			Password: vivoupdater.VivoPassword}
+	vivoIndexer := vivoupdater.VivoIndexer{
+		Url:      vivoupdater.VivoIndexerUrl,
+		Username: vivoupdater.VivoEmail,
+		Password: vivoupdater.VivoPassword}
 
-		widgetsIndexer := vivoupdater.WidgetsIndexer{
-			Url:      vivoupdater.WidgetsIndexerBaseUrl,
-			Username: vivoupdater.WidgetsUser,
-			Password: vivoupdater.WidgetsPassword}
+	widgetsIndexer := vivoupdater.WidgetsIndexer{
+		Url:      vivoupdater.WidgetsIndexerBaseUrl,
+		Username: vivoupdater.WidgetsUser,
+		Password: vivoupdater.WidgetsPassword}
 
-		for b := range batches {
-			go vivoupdater.IndexBatch(vivoIndexer, b, logger)
-			go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
-		}
-
-		// do this or let kafka handle?
-		logger.Println("*** Kafka consumer stopped. Wait 5 minutes and try again.")
-		time.Sleep(time.Minute * 5)
-		//time.Sleep(time.Second * 10)
-		logger.Println("*** Start kafka consumer again.")
+	// TODO: should these check for Done()?
+	for b := range batches {
+		go vivoupdater.IndexBatch(vivoIndexer, b, logger)
+		go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
 	}
 
-	//loggedRouter := handlers.CombinedLoggingHandler(os.Stdout, router)
-	log.Fatal(http.ListenAndServe(":8484", router))
+	// do this or let kafka handle?
+	//logger.Println("*** Kafka consumer stopped. Wait 5 minutes and try again.")
+	//time.Sleep(time.Minute * 5)
+	//time.Sleep(time.Second * 10)
+	//logger.Println("*** Start kafka consumer again.")
+	//}
 
-	//<-ctx.Quit
-	//ctx.Logger.Println("Exiting...")
+	//loggedRouter := handlers.CombinedLoggingHandler(os.Stdout, router)
+	// TODO: is this the correct usage of context cancel?
+	logger.Println("Exiting...")
+	log.Fatal(http.ListenAndServe(":8484", router))
 }

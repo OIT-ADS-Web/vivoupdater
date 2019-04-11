@@ -1,6 +1,9 @@
 package vivoupdater
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type UpdateSubscriber interface {
 	MaxConnectAttempts() int
@@ -31,7 +34,7 @@ type UriBatcher struct {
 	BatchTimeout time.Duration
 }
 
-func (ub UriBatcher) Batch(updates chan UpdateMessage) chan map[string]bool {
+func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage) chan map[string]bool {
 	batches := make(chan map[string]bool)
 	go func() {
 		batch := make(map[string]bool, ub.BatchSize)
@@ -49,9 +52,9 @@ func (ub UriBatcher) Batch(updates chan UpdateMessage) chan map[string]bool {
 				if len(batch) > 0 {
 					batches <- batch
 					batch = make(map[string]bool, ub.BatchSize)
-
 				}
-
+			case <-ctx.Done():
+				Notifier.DoSend("vivoupdater batcher context cancelled", ctx.Err())
 			}
 		}
 	}()
