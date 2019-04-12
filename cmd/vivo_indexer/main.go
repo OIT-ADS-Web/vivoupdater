@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -146,25 +145,11 @@ func main() {
 	// https://github.com/Shopify/sarama/issues/1192
 	defer cancel()
 
-	retryCount := 0
-	var updates chan vivoupdater.UpdateMessage
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered in main", r)
-			// TODO: not sure about this working
-			updates = consumer.Subscribe(cancellable, logger)
-			retryCount++
-		}
-		if retryCount > 3 {
-			panic(errors.New("tried 3 times to connect to kafka, giving up"))
-		}
-	}()
-
 	// TODO: not sure for loop is necessary
 	//for true {
 	// sending cancel as parameter seems wrong
 	//updates := consumer.Subscribe(cancellable, logger, cancel)
-	updates = consumer.Subscribe(cancellable, logger)
+	updates := consumer.Subscribe(cancellable, logger)
 
 	batches := vivoupdater.UriBatcher{
 		BatchSize:    vivoupdater.BatchSize,
