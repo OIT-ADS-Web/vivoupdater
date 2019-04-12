@@ -84,14 +84,16 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/", healthCheck)
+	done := make(chan bool)
 
 	profile := flag.Bool("pprof", false, "set this to enable the pprof endpoint")
+
+	flag.Parse()
 	if *profile {
 		fmt.Println("Enable /debug/pprof/ endpoint for profiling the application.")
 		router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 	}
-
-	flag.Parse()
+	go http.ListenAndServe(":8484", router)
 
 	logger := log.New(os.Stdout, "[vivo-updater]", log.LstdFlags)
 
@@ -140,6 +142,7 @@ func main() {
 	cancellable, cancel := context.WithCancel(ctx)
 	// TODO: is this the correct usage of context cancel?
 	// https://dave.cheney.net/2017/08/20/context-isnt-for-cancellation
+	// but
 	// supposedly catching 'consumer rebalance' error involves
 	// checking context.Done()
 	// https://github.com/Shopify/sarama/issues/1192
@@ -179,6 +182,9 @@ func main() {
 	//}
 
 	// is this called ever ?
-	logger.Println("Exiting...")
-	log.Fatal(http.ListenAndServe(":8484", router))
+	//logger.Println("Exiting...")
+	//done := make(chan bool)
+	//go http.ListenAndServe(":8484", router)
+	<-done
+	//log.Fatal(http.ListenAndServe(":8484", router))
 }

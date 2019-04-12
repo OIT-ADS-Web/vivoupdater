@@ -86,24 +86,7 @@ func init() {
 	config.Version = sarama.V1_0_0_0
 }
 
-func main() {
-	flag.Parse()
-
-	// just making a sync producer - not using 'producer.go'
-	producer, err := sarama.NewSyncProducer(servers, config)
-	if err != nil {
-		log.Fatalf("%s\n", err)
-		log.Fatalln(err)
-	}
-	defer func() {
-		if err := producer.Close(); err != nil {
-			log.Fatalf("%s\n", err)
-			log.Fatalln(err)
-		}
-	}()
-
-	topic := os.Getenv("UPDATES_TOPIC")
-
+func makeFakeUri(producer sarama.SyncProducer, topic string) {
 	num := rand.Intn(9)
 	subject := fmt.Sprintf("http://scholars.duke.edu/individual/per000000%d", num)
 
@@ -133,6 +116,30 @@ func main() {
 	} else {
 		log.Printf("subject=%s\n", subject)
 		log.Printf("> message sent to partition %d at offset %d\n", partition, offset)
+	}
+}
+
+func main() {
+	number := flag.Int("number", 1, "how many fake uris to post")
+	flag.Parse()
+
+	// just making a sync producer - not using 'producer.go'
+	producer, err := sarama.NewSyncProducer(servers, config)
+	if err != nil {
+		log.Fatalf("%s\n", err)
+		log.Fatalln(err)
+	}
+	defer func() {
+		if err := producer.Close(); err != nil {
+			log.Fatalf("%s\n", err)
+			log.Fatalln(err)
+		}
+	}()
+
+	topic := os.Getenv("UPDATES_TOPIC")
+
+	for i := 1; i <= *number; i++ {
+		makeFakeUri(producer, topic)
 	}
 
 }
