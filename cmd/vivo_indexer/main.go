@@ -121,11 +121,15 @@ func main() {
 	// TODO: not sure this is ever actually called
 	defer func() {
 		// this recovery does not seem to happen
-		if r := recover(); r != nil {
-			fmt.Println("Recovered from panic", r)
-		}
+		//if r := recover(); r != nil {
+		//	fmt.Println("Recovered from panic", r)
+		//}
 		signal.Stop(c)
 		fmt.Println("shutting down ...")
+
+		if err := srv.Shutdown(ctx); err != nil {
+			logger.Fatalf("could not shutdown: %v", err)
+		}
 		cancel()
 		os.Exit(1)
 	}()
@@ -137,15 +141,13 @@ func main() {
 		}
 	}()
 
+	// is this function necessary?
 	go func() {
 		for {
 			select {
 			case <-c:
 				cancel()
 			case <-ctx.Done():
-				if err := srv.Shutdown(ctx); err != nil {
-					logger.Fatalf("could not shutdown: %v", err)
-				}
 				panic(ctx.Err)
 			}
 		}
@@ -212,19 +214,34 @@ func main() {
 		Username: vivoupdater.WidgetsUser,
 		Password: vivoupdater.WidgetsPassword}
 
-	for {
-		select {
-		case <-c:
-			cancel()
-		case b := <-batches:
-			go vivoupdater.IndexBatch(vivoIndexer, b, logger)
-			go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
-		case <-ctx.Done():
-			// seems to never be called
-			logger.Printf("closing because %v\n", ctx.Err())
-			panic(ctx.Err)
-		}
+	// or just simple iterator
+	for b := range batches {
+		go vivoupdater.IndexBatch(ctx, vivoIndexer, b, logger)
+		go vivoupdater.IndexBatch(ctx, widgetsIndexer, b, logger)
 	}
+
+	/*
+		for {
+			select {
+			case <-c:
+				cancel()
+			case b := <-batches:
+				// if ctrl-c (trying to emulate re-balance err)
+				// seems to get stuck in here unless updater#Batch calls panic
+				go func() {
+					vivoupdater.IndexBatch(ctx, vivoIndexer, b, logger)
+				}()
+				go func() {
+					vivoupdater.IndexBatch(ctx, widgetsIndexer, b, logger)
+				}()
+			case <-ctx.Done():
+				// seems to never be called
+				logger.Printf("closing because %v\n", ctx.Err())
+				panic(ctx.Err)
+			}
+
+		}
+	*/
 
 }
 

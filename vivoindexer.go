@@ -2,6 +2,7 @@ package vivoupdater
 
 import (
 	"bytes"
+	"context"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -19,7 +20,7 @@ func (wi VivoIndexer) Name() string {
 	return "VivoIndexer"
 }
 
-func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
+func (vi VivoIndexer) Index(ctx context.Context, batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
 	var buf bytes.Buffer
 	start := time.Now()
 
