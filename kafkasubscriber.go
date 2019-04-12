@@ -146,8 +146,6 @@ func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 			sess.MarkMessage(msg, "")
 		case <-sess.Context().Done():
 			err := sess.Context().Err()
-			notifier := GetNotifier()
-			notifier.DoSend("Kafka Subscriber shutdown via sarama Context", err)
 			return err
 		}
 	}
@@ -225,6 +223,20 @@ func StartConsumer(ctx context.Context, ks KafkaSubscriber, handler ConsumerGrou
 	return nil
 }
 
+func (ks KafkaSubscriber) Subscribe(ctx context.Context,
+	logger *log.Logger, updates chan UpdateMessage) error {
+	// NOTE: need to use channel to send to batcher
+	handler := ConsumerGroupHandler{Logger: logger, Updates: updates}
+
+	err := StartConsumer(ctx, ks, handler)
+	if err != nil {
+		logger.Printf("start-consumer error: %v\n", err)
+		return err
+	}
+	return nil
+}
+
+/*
 //https://dave.cheney.net/tag/logging
 func (ks KafkaSubscriber) Subscribe(ctx context.Context,
 	logger *log.Logger) chan UpdateMessage {
@@ -242,7 +254,7 @@ func (ks KafkaSubscriber) Subscribe(ctx context.Context,
 	}()
 	return updates
 }
-
+*/
 var producer sarama.AsyncProducer
 
 func GetProducer() sarama.AsyncProducer {

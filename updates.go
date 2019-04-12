@@ -36,8 +36,10 @@ type UriBatcher struct {
 
 func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage) chan map[string]bool {
 	batches := make(chan map[string]bool)
+
 	go func() {
 		batch := make(map[string]bool, ub.BatchSize)
+
 		for {
 			timer := time.NewTimer(ub.BatchTimeout)
 			select {
@@ -57,7 +59,9 @@ func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage) chan
 				err := ctx.Err()
 				notifier := GetNotifier()
 				notifier.DoSend("vivoupdater batcher context cancelled", err)
-				// panic here??? not sure
+				close(batches)
+				// TODO: panic here seems to far from main()
+				// but otherwise never breaks out of loop
 				panic(err)
 			}
 		}

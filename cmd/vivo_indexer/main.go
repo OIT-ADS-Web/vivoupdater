@@ -8,18 +8,15 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 	"time"
 
-	//"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/namsral/flag"
 
 	"github.com/OIT-ADS-Web/vivoupdater"
-	//"github.com/OIT-ADS-Web/vivoupdater/config"
-	//"github.com/OIT-ADS-Web/vivoupdater/indexer"
-	//"github.com/OIT-ADS-Web/vivoupdater/kafka"
 )
 
 func init() {
@@ -84,7 +81,14 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/", healthCheck)
-	done := make(chan bool)
+	srv := &http.Server{
+		Addr: ":8484",
+		// Good practice to set timeouts to avoid Slowloris attacks.
+		WriteTimeout: time.Second * 15,
+		ReadTimeout:  time.Second * 15,
+		IdleTimeout:  time.Second * 60,
+		Handler:      router, // Pass our instance of gorilla/mux in.
+	}
 
 	profile := flag.Bool("pprof", false, "set this to enable the pprof endpoint")
 
@@ -93,16 +97,59 @@ func main() {
 		fmt.Println("Enable /debug/pprof/ endpoint for profiling the application.")
 		router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 	}
-	go http.ListenAndServe(":8484", router)
 
 	logger := log.New(os.Stdout, "[vivo-updater]", log.LstdFlags)
-
 	logger.SetOutput(&lumberjack.Logger{
 		Filename:   vivoupdater.LogFile,
 		MaxSize:    vivoupdater.LogMaxSize,
 		MaxBackups: vivoupdater.LogMaxBackups,
 		MaxAge:     vivoupdater.LogMaxAge,
 	})
+
+	ctx := context.Background()
+	cancellable, cancel := context.WithCancel(ctx)
+	// TODO: is this the correct usage of context cancel?
+	// https://dave.cheney.net/2017/08/20/context-isnt-for-cancellation
+	// but
+	// supposedly catching 'consumer rebalance' error involves
+	// checking context.Done()
+	// https://github.com/Shopify/sarama/issues/1192
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	// TODO: not sure this is ever actually called
+	defer func() {
+		// this recovery does not seem to happen
+		if r := recover(); r != nil {
+			fmt.Println("Recovered from panic", r)
+		}
+		signal.Stop(c)
+		fmt.Println("shutting down ...")
+		cancel()
+		os.Exit(1)
+	}()
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			logger.Fatalf("could not start server: %v", err)
+			cancel()
+		}
+	}()
+
+	go func() {
+		for {
+			select {
+			case <-c:
+				cancel()
+			case <-ctx.Done():
+				if err := srv.Shutdown(ctx); err != nil {
+					logger.Fatalf("could not shutdown: %v", err)
+				}
+				panic(ctx.Err)
+			}
+		}
+	}()
 
 	vaultConfig := &vivoupdater.VaultConfig{
 		Endpoint: vivoupdater.VaultEndpoint,
@@ -137,22 +184,19 @@ func main() {
 
 	// note same subscriber we 'set' above
 	consumer := vivoupdater.GetSubscriber()
-	ctx := context.Background()
 
-	cancellable, cancel := context.WithCancel(ctx)
-	// TODO: is this the correct usage of context cancel?
-	// https://dave.cheney.net/2017/08/20/context-isnt-for-cancellation
-	// but
-	// supposedly catching 'consumer rebalance' error involves
-	// checking context.Done()
-	// https://github.com/Shopify/sarama/issues/1192
-	defer cancel()
-
-	// TODO: not sure for loop is necessary
-	//for true {
-	// sending cancel as parameter seems wrong
-	//updates := consumer.Subscribe(cancellable, logger, cancel)
-	updates := consumer.Subscribe(cancellable, logger)
+	updates := make(chan vivoupdater.UpdateMessage)
+	go func() {
+		err := consumer.Subscribe(cancellable, logger, updates)
+		if err != nil {
+			// how to 're-start' here? e.g. capture rebalance
+			// right now it will cancel - which makes it's way
+			// to updates#Batch - which panics(err)
+			// close not really necessary if panic anyway
+			//close(updates)
+			cancel()
+		}
+	}()
 
 	batches := vivoupdater.UriBatcher{
 		BatchSize:    vivoupdater.BatchSize,
@@ -168,23 +212,20 @@ func main() {
 		Username: vivoupdater.WidgetsUser,
 		Password: vivoupdater.WidgetsPassword}
 
-	// TODO: should these check for context.Done()?
-	for b := range batches {
-		go vivoupdater.IndexBatch(vivoIndexer, b, logger)
-		go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
+	for {
+		select {
+		case <-c:
+			cancel()
+		case b := <-batches:
+			go vivoupdater.IndexBatch(vivoIndexer, b, logger)
+			go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
+		case <-ctx.Done():
+			// seems to never be called
+			logger.Printf("closing because %v\n", ctx.Err())
+			panic(ctx.Err)
+		}
 	}
 
-	// do this or let kafka handle?
-	//logger.Println("*** Kafka consumer stopped. Wait 5 minutes and try again.")
-	//time.Sleep(time.Minute * 5)
-	//time.Sleep(time.Second * 10)
-	//logger.Println("*** Start kafka consumer again.")
-	//}
-
-	// is this called ever ?
-	//logger.Println("Exiting...")
-	//done := make(chan bool)
-	//go http.ListenAndServe(":8484", router)
-	<-done
-	//log.Fatal(http.ListenAndServe(":8484", router))
 }
+
+//go tool pprof -png http://localhost:8484/debug/pprof/heap > out.png

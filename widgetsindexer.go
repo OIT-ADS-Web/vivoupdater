@@ -100,10 +100,10 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
 const PersonFilterRegex = `.*individual/per[0-9A-Za-z]{3,}`
 const OrgFilterRegex = `.*individual/org[0-9]{8}`
 
-func (wi WidgetsIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
-	perRegx := regexp.MustCompile(PersonFilterRegex)
-	orgRegx := regexp.MustCompile(OrgFilterRegex)
+var perRegx = regexp.MustCompile(PersonFilterRegex)
+var orgRegx = regexp.MustCompile(OrgFilterRegex)
 
+func (wi WidgetsIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
 	widgetsPeopleIndexer := NewWidgetsBatchIndexer(wi, "/people/uris", perRegx)
 	widgetsOrganizationIndexer := NewWidgetsBatchIndexer(wi, "/organizations/uris", orgRegx)
 
@@ -111,7 +111,6 @@ func (wi WidgetsIndexer) Index(batch map[string]bool, logger *log.Logger) (map[s
 		widgetsPeopleIndexer.Gather(u)
 		widgetsOrganizationIndexer.Gather(u)
 	}
-
 	err := widgetsPeopleIndexer.IndexUris(logger)
 
 	if err != nil {
