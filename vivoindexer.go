@@ -65,6 +65,11 @@ func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[stri
 	for k, _ := range batch {
 		uris = append(uris, k)
 	}
+
+	for _, uri := range uris {
+		logger.Printf("vivo-index:%#v\n", uri)
+	}
+
 	end := time.Now()
 	metrics := IndexMetrics{Start: start, End: end, Uris: uris, Name: "vivo"}
 	SendMetrics(metrics, logger)

@@ -227,7 +227,6 @@ func (ks KafkaSubscriber) Subscribe(ctx context.Context,
 	logger *log.Logger, updates chan UpdateMessage) error {
 	// NOTE: need to use channel to send to batcher
 	handler := ConsumerGroupHandler{Logger: logger, Updates: updates}
-
 	err := StartConsumer(ctx, ks, handler)
 	if err != nil {
 		logger.Printf("start-consumer error: %v\n", err)
@@ -236,25 +235,6 @@ func (ks KafkaSubscriber) Subscribe(ctx context.Context,
 	return nil
 }
 
-/*
-//https://dave.cheney.net/tag/logging
-func (ks KafkaSubscriber) Subscribe(ctx context.Context,
-	logger *log.Logger) chan UpdateMessage {
-	// NOTE: need to use channel to send to batcher
-	updates := make(chan UpdateMessage)
-	handler := ConsumerGroupHandler{Logger: logger, Updates: updates}
-
-	go func() {
-		// not sure if this will catch consumer rebalance error or not
-		err := StartConsumer(ctx, ks, handler)
-		if err != nil {
-			logger.Printf("start-consumer error: %v\n", err)
-			panic(err)
-		}
-	}()
-	return updates
-}
-*/
 var producer sarama.AsyncProducer
 
 func GetProducer() sarama.AsyncProducer {
@@ -312,7 +292,6 @@ type IndexMetrics struct {
 func SendMetrics(metrics IndexMetrics, logger *log.Logger) {
 	rt := (metrics.End.Sub(metrics.Start).Seconds() * 1000.0)
 
-	logger.Println("...sending some metrics")
 	d := struct {
 		Duration float64 `influx:"duration"`
 		Count    int64   `influx:"count"`

@@ -28,13 +28,6 @@ func init() {
 	flag.StringVar(&vivoupdater.VaultRoleId, "vault_role_id", "", "vault role id")
 	flag.StringVar(&vivoupdater.VaultSecretId, "vault_secret_id", "", "vault secret id")
 
-	// if no vault - get from ssl files ??
-	//if len(*vaultRoleID) == 0 && len(*vaultToken) == 0 {
-	//  flag.StringVar(&vivoupdater.ClientCert, "client_cert", "", "client ssl cert (*.pem file location)")
-	//  flag.StringVar(&vivoupdater.ClientKey, "client_key", "", "client ssl key (*.pem file location)")
-	//  flag.StringVar(&vivoupdater.ServerCert, "server_cert", "", "server ssl cert (*.pem file location)")
-	// }
-
 	flag.StringVar(&vivoupdater.ClientId, "client_id", "", "client (consumer) id to send to kafka")
 	flag.StringVar(&vivoupdater.GroupName, "group_name", "", "client (consumer) group name to send to kafka")
 
@@ -42,7 +35,7 @@ func init() {
 	flag.StringVar(&vivoupdater.UpdatesTopic, "updates_topic", "", "updates kafka topic")
 
 	// FIXME: do something like this?
-	//flag.IntVar(&config.MaxKafkaAttempts, "max_kafak_attempts", 3, "maximum number of consecutive attempts to connect to kafka before exiting")
+	//flag.IntVar(&config.MaxKafkaAttempts, "max_kafka_attempts", 3, "maximum number of consecutive attempts to connect to kafka before exiting")
 	//flag.IntVar(&config.KafkaRetryInterval, "kafka_retry_interval", 5, "number of seconds to wait before reconnecting to kafka, reconnects will back off at a rate of num attempts * interval")
 
 	flag.StringVar(&vivoupdater.RedisUrl, "redis_url", "localhost:6379", "host:port of the redis instance")
@@ -116,10 +109,12 @@ func main() {
 
 	// TODO: not sure this is ever actually called
 	defer func() {
+		// call first?
+		cancel()
 		if err := srv.Shutdown(ctx); err != nil {
 			logger.Fatalf("could not shutdown: %v", err)
 		}
-		cancel()
+		logger.Println("shutting down")
 		os.Exit(1)
 	}()
 
@@ -180,46 +175,30 @@ func main() {
 		Username: vivoupdater.WidgetsUser,
 		Password: vivoupdater.WidgetsPassword}
 
+	go func() {
+		err := consumer.Subscribe(cancellable, logger, updates)
+		if err != nil {
+			// how to 're-start' here? e.g. capture rebalance
+			logger.Printf("consumer subscribe error:%v\n", err)
+			cancel()
+		}
+	}()
+
+	// main for-loop of application
+IndexerLoop:
+
 	for {
-		go func() {
-			err := consumer.Subscribe(cancellable, logger, updates)
-			if err != nil {
-				// how to 're-start' here? e.g. capture rebalance
-				// right now it will cancel - which makes it's way
-				// to updates#Batch - which panics(err)
-				// close not really necessary if panic anyway
-				//close(updates)
-				cancel()
-			}
-		}()
-
-		/*
-			select {
-			case b := <-batches:
-				go func() {
-					vivoupdater.IndexBatch(vivoIndexer, b, logger)
-				}()
-				go func() {
-					vivoupdater.IndexBatch(widgetsIndexer, b, logger)
-				}()
-			case <-ctx.Done():
-				// seems to never be called
-				logger.Printf("closing because %v\n", ctx.Err())
-				//panic(ctx.Err)
-				//cancel()
-			}
-		*/
-
-		for b := range batches {
+		// consumer subscribe here?
+		select {
+		case b := <-batches:
 			go vivoupdater.IndexBatch(vivoIndexer, b, logger)
 			go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
+		case <-ctx.Done():
+			logger.Printf("indexer loop closed because %v\n", ctx.Err())
+			break IndexerLoop
 		}
-
-		// TODO: how to get to re-start itself
-		//log.Println("Kafka consumer stopped. Wait 5 minutes and try again.")
-		//time.Sleep(time.Minute * 5)
-		//log.Println("Start kafka consumer again.")
 	}
+
 }
 
 //go tool pprof -png http://localhost:8484/debug/pprof/heap > out.png
