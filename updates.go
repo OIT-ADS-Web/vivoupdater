@@ -61,7 +61,7 @@ func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage) chan
 				notifier.DoSend("vivoupdater batcher context cancelled", err)
 				// TODO: panic here seems to far from main()
 				// but otherwise never breaks out of loop
-				panic(err)
+				//panic(err)
 			}
 		}
 	}()

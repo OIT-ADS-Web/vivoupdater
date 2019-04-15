@@ -8,7 +8,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"os/signal"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -115,18 +114,8 @@ func main() {
 	// checking context.Done()
 	// https://github.com/Shopify/sarama/issues/1192
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-
 	// TODO: not sure this is ever actually called
 	defer func() {
-		// this recovery does not seem to happen
-		//if r := recover(); r != nil {
-		//	fmt.Println("Recovered from panic", r)
-		//}
-		signal.Stop(c)
-		fmt.Println("shutting down ...")
-
 		if err := srv.Shutdown(ctx); err != nil {
 			logger.Fatalf("could not shutdown: %v", err)
 		}
@@ -138,18 +127,6 @@ func main() {
 		if err := srv.ListenAndServe(); err != nil {
 			logger.Fatalf("could not start server: %v", err)
 			cancel()
-		}
-	}()
-
-	// is this function necessary?
-	go func() {
-		for {
-			select {
-			case <-c:
-				cancel()
-			case <-ctx.Done():
-				panic(ctx.Err)
-			}
 		}
 	}()
 
@@ -188,17 +165,6 @@ func main() {
 	consumer := vivoupdater.GetSubscriber()
 
 	updates := make(chan vivoupdater.UpdateMessage)
-	go func() {
-		err := consumer.Subscribe(cancellable, logger, updates)
-		if err != nil {
-			// how to 're-start' here? e.g. capture rebalance
-			// right now it will cancel - which makes it's way
-			// to updates#Batch - which panics(err)
-			// close not really necessary if panic anyway
-			//close(updates)
-			cancel()
-		}
-	}()
 
 	batches := vivoupdater.UriBatcher{
 		BatchSize:    vivoupdater.BatchSize,
@@ -214,35 +180,46 @@ func main() {
 		Username: vivoupdater.WidgetsUser,
 		Password: vivoupdater.WidgetsPassword}
 
-	// or just simple iterator
-	for b := range batches {
-		go vivoupdater.IndexBatch(ctx, vivoIndexer, b, logger)
-		go vivoupdater.IndexBatch(ctx, widgetsIndexer, b, logger)
-	}
-
-	/*
-		for {
-			select {
-			case <-c:
+	for {
+		go func() {
+			err := consumer.Subscribe(cancellable, logger, updates)
+			if err != nil {
+				// how to 're-start' here? e.g. capture rebalance
+				// right now it will cancel - which makes it's way
+				// to updates#Batch - which panics(err)
+				// close not really necessary if panic anyway
+				//close(updates)
 				cancel()
+			}
+		}()
+
+		/*
+			select {
 			case b := <-batches:
-				// if ctrl-c (trying to emulate re-balance err)
-				// seems to get stuck in here unless updater#Batch calls panic
 				go func() {
-					vivoupdater.IndexBatch(ctx, vivoIndexer, b, logger)
+					vivoupdater.IndexBatch(vivoIndexer, b, logger)
 				}()
 				go func() {
-					vivoupdater.IndexBatch(ctx, widgetsIndexer, b, logger)
+					vivoupdater.IndexBatch(widgetsIndexer, b, logger)
 				}()
 			case <-ctx.Done():
 				// seems to never be called
 				logger.Printf("closing because %v\n", ctx.Err())
-				panic(ctx.Err)
+				//panic(ctx.Err)
+				//cancel()
 			}
+		*/
 
+		for b := range batches {
+			go vivoupdater.IndexBatch(vivoIndexer, b, logger)
+			go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
 		}
-	*/
 
+		// TODO: how to get to re-start itself
+		//log.Println("Kafka consumer stopped. Wait 5 minutes and try again.")
+		//time.Sleep(time.Minute * 5)
+		//log.Println("Start kafka consumer again.")
+	}
 }
 
 //go tool pprof -png http://localhost:8484/debug/pprof/heap > out.png

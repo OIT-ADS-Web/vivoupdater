@@ -1,7 +1,6 @@
 package vivoupdater
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -104,7 +103,7 @@ const OrgFilterRegex = `.*individual/org[0-9]{8}`
 var perRegx = regexp.MustCompile(PersonFilterRegex)
 var orgRegx = regexp.MustCompile(OrgFilterRegex)
 
-func (wi WidgetsIndexer) Index(ctx context.Context, batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
+func (wi WidgetsIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
 	widgetsPeopleIndexer := NewWidgetsBatchIndexer(wi, "/people/uris", perRegx)
 	widgetsOrganizationIndexer := NewWidgetsBatchIndexer(wi, "/organizations/uris", orgRegx)
 

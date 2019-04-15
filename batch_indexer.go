@@ -1,17 +1,16 @@
 package vivoupdater
 
 import (
-	"context"
 	"log"
 )
 
 type BatchIndexer interface {
 	Name() string
-	Index(ctx context.Context, b map[string]bool, logger *log.Logger) (map[string]bool, error)
+	Index(b map[string]bool, logger *log.Logger) (map[string]bool, error)
 }
 
-func IndexBatch(ctx context.Context, idx BatchIndexer, b map[string]bool, logger *log.Logger) {
-	ib, err := idx.Index(ctx, b, logger)
+func IndexBatch(idx BatchIndexer, b map[string]bool, logger *log.Logger) {
+	ib, err := idx.Index(b, logger)
 
 	if err != nil {
 		// notification needs to happen here - or something
