@@ -200,5 +200,3 @@ IndexerLoop:
 	}
 
 }
-
-//go tool pprof -png http://localhost:8484/debug/pprof/heap > out.png
