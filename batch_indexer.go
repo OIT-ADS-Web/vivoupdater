@@ -9,12 +9,13 @@ type BatchIndexer interface {
 	Index(b map[string]bool, logger *log.Logger) (map[string]bool, error)
 }
 
-func IndexBatch(ctx Context, i BatchIndexer, b map[string]bool) {
-	ib, err := i.Index(b, ctx.Logger)
+func IndexBatch(idx BatchIndexer, b map[string]bool, logger *log.Logger) {
+	ib, err := idx.Index(b, logger)
+
 	if err != nil {
-		ctx.handleError("Indexing Error", err, true)
-	} else {
-		ctx.Logger.Printf("%v uris indexed by %s", len(ib), i.Name())
-		ctx.Logger.Printf("%v", ib)
+		// notification needs to happen here - or something
+		logger.Printf("Indexing Error: %v\n", err)
 	}
+	logger.Printf("%v uris indexed by %s", len(ib), idx.Name())
+	logger.Printf("%v", ib)
 }

@@ -6,6 +6,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"time"
 )
 
 type VivoIndexer struct {
@@ -19,8 +20,9 @@ func (wi VivoIndexer) Name() string {
 }
 
 func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[string]bool, error) {
-
 	var buf bytes.Buffer
+	start := time.Now()
+
 	w := multipart.NewWriter(&buf)
 	err := w.WriteField("email", vi.Username)
 	if err != nil {
@@ -53,9 +55,25 @@ func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[stri
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	client := &http.Client{}
 	resp, err := client.Do(req)
+
+	//stackoverflow.com/questions/16280176/go-panic-runtime-error-invalid-memory-address-or-nil-pointer-dereference
 	if err != nil {
 		return batch, err
 	}
+
+	uris := make([]string, len(batch))
+	for k, _ := range batch {
+		uris = append(uris, k)
+	}
+
+	for _, uri := range uris {
+		logger.Printf("vivo-index:%#v\n", uri)
+	}
+
+	end := time.Now()
+	metrics := IndexMetrics{Start: start, End: end, Uris: uris, Name: "vivo"}
+	SendMetrics(metrics, logger)
+
 	defer resp.Body.Close()
 	buf.Reset()
 	return batch, nil
