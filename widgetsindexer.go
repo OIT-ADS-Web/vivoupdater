@@ -88,6 +88,7 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	end := time.Now()
 	metrics := IndexMetrics{Start: start, End: end, Uris: wbi.Uris, Name: "widgets"}
