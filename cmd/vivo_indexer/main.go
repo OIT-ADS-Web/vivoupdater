@@ -101,7 +101,7 @@ func main() {
 
 	// TODO: not sure this is ever actually called
 	defer func() {
-		// call first?
+		// call first? last?  don't know
 		cancel()
 		if err := srv.Shutdown(ctx); err != nil {
 			logger.Fatalf("could not shutdown: %v", err)
@@ -113,7 +113,8 @@ func main() {
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			logger.Fatalf("could not start server: %v", err)
-			cancel()
+			//cancel()  // necessary to call this?
+			os.Exit(1)
 		}
 	}()
 
@@ -173,6 +174,8 @@ func main() {
 			// how to 're-start' here? e.g. capture rebalance
 			logger.Printf("consumer subscribe error:%v\n", err)
 			cancel()
+			// might just want to die-off here
+			os.Exit(1)
 		}
 	}()
 
@@ -187,6 +190,11 @@ IndexerLoop:
 			go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
 		case <-ctx.Done():
 			logger.Printf("indexer loop closed because %v\n", ctx.Err())
+			// trying to avoid infinite loop in updates.go
+			// cancel() // in theory cancel() is already called, right?
+			// die-off here?
+			os.Exit(1)
+			// sleep?  backoff timeout?
 			break IndexerLoop
 		}
 	}
