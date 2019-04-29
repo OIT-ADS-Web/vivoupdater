@@ -101,8 +101,7 @@ func main() {
 
 	// TODO: not sure this is ever actually called
 	defer func() {
-		// call first?
-		cancel()
+		cancel() // unnecessary call?
 		if err := srv.Shutdown(ctx); err != nil {
 			logger.Fatalf("could not shutdown: %v", err)
 		}
@@ -113,7 +112,8 @@ func main() {
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			logger.Fatalf("could not start server: %v", err)
-			cancel()
+			cancel() // unnecessary call?
+			os.Exit(1)
 		}
 	}()
 
@@ -172,7 +172,8 @@ func main() {
 		if err != nil {
 			// how to 're-start' here? e.g. capture rebalance
 			logger.Printf("consumer subscribe error:%v\n", err)
-			cancel()
+			cancel() // unnecessary call?
+			os.Exit(1)
 		}
 	}()
 
@@ -180,13 +181,19 @@ func main() {
 IndexerLoop:
 
 	for {
-		// consumer subscribe here?
 		select {
 		case b := <-batches:
 			go vivoupdater.IndexBatch(vivoIndexer, b, logger)
 			go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
 		case <-ctx.Done():
+			cancel() // unnecessary call?
 			logger.Printf("indexer loop closed because %v\n", ctx.Err())
+			// NOTE: trying to avoid infinite loop in updates.go
+			// (e.g. sending Notifier emails over and over)
+			// would sleep? or some kind of backoff timeout be better?
+			os.Exit(1)
+			// I thought breaking here would effectively exit
+			// but it did not seem to do that
 			break IndexerLoop
 		}
 	}

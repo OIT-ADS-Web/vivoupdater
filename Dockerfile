@@ -8,12 +8,14 @@ ADD . /app/
 
 WORKDIR /app/
 
-#RUN glide install
-#RUN go build /app/cmd/vivo_indexer/main.go
 RUN ./build.sh
 
 RUN adduser -S -D -H -h /app gouser
 
 RUN chmod go+x ./cmd/vivo_indexer/vivo_indexer
+
+EXPOSE 8484
+
+CMD ["./cmd/vivo_indexer/vivo_indexer"]
 
 USER gouser
