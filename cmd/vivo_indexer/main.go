@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/namsral/flag"
 
@@ -91,13 +90,6 @@ func main() {
 	}
 
 	logger := log.New(os.Stdout, "[vivo-updater]", log.LstdFlags)
-	logger.SetOutput(&lumberjack.Logger{
-		Filename:   vivoupdater.LogFile,
-		MaxSize:    vivoupdater.LogMaxSize,
-		MaxBackups: vivoupdater.LogMaxBackups,
-		MaxAge:     vivoupdater.LogMaxAge,
-	})
-
 	ctx := context.Background()
 	cancellable, cancel := context.WithCancel(ctx)
 	// TODO: is this the correct usage of context cancel?
