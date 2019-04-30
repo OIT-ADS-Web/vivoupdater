@@ -107,8 +107,10 @@ func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 			if err != nil {
 				return err
 			}
+			// NOTE: could check for "" but have not seen blank ones in log
 			c.Logger.Printf("uri received: %v\n", um.Triple.Subject)
 			c.Updates <- um
+			// marking offset
 			sess.MarkMessage(msg, "")
 		case <-sess.Context().Done():
 			err := sess.Context().Err()
