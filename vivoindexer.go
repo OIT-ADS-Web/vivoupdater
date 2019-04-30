@@ -66,8 +66,11 @@ func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[stri
 		uris = append(uris, k)
 	}
 
+	logger.Printf("vivo-indexer-url:%#v", vi.Url)
+
+	// filter out "" here? how are they making it?
 	for _, uri := range uris {
-		logger.Printf("vivo-index:%#v\n", uri)
+		logger.Printf("->vivo-index:%#v\n", uri)
 	}
 
 	end := time.Now()

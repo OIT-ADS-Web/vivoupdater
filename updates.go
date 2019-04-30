@@ -25,8 +25,7 @@ type UpdateMessage struct {
 	Phase  string
 	Name   string
 	Triple Triple
-	// add a retry type of flag?
-	Attempts int `json:",omitempty"`
+	// TODO: add a retry, attempts (int) type of flag?
 }
 
 type UriBatcher struct {
@@ -45,7 +44,10 @@ func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage) chan
 			select {
 			case u := <-updates:
 				timer.Stop()
-				batch[u.Triple.Subject] = true
+				// check for blank string here? seems wrong
+				if u.Triple.Subject != "" {
+					batch[u.Triple.Subject] = true
+				}
 				if len(batch) == ub.BatchSize {
 					batches <- batch
 					batch = make(map[string]bool, ub.BatchSize)
@@ -59,6 +61,8 @@ func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage) chan
 				err := ctx.Err()
 				notifier := GetNotifier()
 				notifier.DoSend("vivoupdater batcher context cancelled", err)
+				// put in limit to the number of times this can happen?
+				// or sleep ??
 			}
 		}
 	}()
