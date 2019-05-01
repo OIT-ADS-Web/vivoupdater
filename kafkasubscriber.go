@@ -81,7 +81,7 @@ type ConsumerGroupHandler struct {
 	Context context.Context
 	Logger  *log.Logger
 	Updates chan UpdateMessage
-	Cancel  context.CancelFunc
+	//Cancel  context.CancelFunc
 }
 
 func (c ConsumerGroupHandler) Setup(sess sarama.ConsumerGroupSession) error {
@@ -98,17 +98,16 @@ func (c ConsumerGroupHandler) Cleanup(sess sarama.ConsumerGroupSession) error {
 func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 	claim sarama.ConsumerGroupClaim) error {
 
-	um := UpdateMessage{}
-
 	for {
 		select {
 		case msg := <-claim.Messages():
+			var um UpdateMessage
 			err := json.Unmarshal(msg.Value, &um)
 			if err != nil {
 				return err
 			}
 			// NOTE: could check for "" but have not seen blank ones in log
-			c.Logger.Printf("uri received: %v\n", um.Triple.Subject)
+			c.Logger.Printf("uri consumed: %v\n", um.Triple.Subject)
 			c.Updates <- um
 			// marking offset
 			sess.MarkMessage(msg, "")
