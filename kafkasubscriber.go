@@ -248,21 +248,24 @@ func FluxLine(measurement string, c interface{}, tags map[string]string) (bytes.
 }
 
 type IndexMetrics struct {
-	Start time.Time
-	End   time.Time
-	Uris  []string
-	Name  string
+	Start   time.Time
+	End     time.Time
+	Uris    []string
+	Name    string
+	Success bool
 }
 
-func SendMetrics(metrics IndexMetrics, logger *log.Logger) {
+func SendMetrics(metrics IndexMetrics) {
 	rt := (metrics.End.Sub(metrics.Start).Seconds() * 1000.0)
 
 	d := struct {
 		Duration float64 `influx:"duration"`
 		Count    int64   `influx:"count"`
+		Success  bool    `influx:"success"`
 	}{
 		Duration: rt,
 		Count:    int64(len(metrics.Uris)),
+		Success:  metrics.Success,
 	}
 
 	tags := map[string]string{

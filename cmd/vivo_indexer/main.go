@@ -153,15 +153,18 @@ func main() {
 		BatchSize:    vivoupdater.BatchSize,
 		BatchTimeout: time.Duration(vivoupdater.BatchTimeout) * time.Second}.Batch(cancellable, updates)
 
+	// Metrics (true|false) as config?
 	vivoIndexer := vivoupdater.VivoIndexer{
 		Url:      vivoupdater.VivoIndexerUrl,
 		Username: vivoupdater.VivoEmail,
-		Password: vivoupdater.VivoPassword}
+		Password: vivoupdater.VivoPassword,
+		Metrics:  true}
 
 	widgetsIndexer := vivoupdater.WidgetsIndexer{
 		Url:      vivoupdater.WidgetsIndexerBaseUrl,
 		Username: vivoupdater.WidgetsUser,
-		Password: vivoupdater.WidgetsPassword}
+		Password: vivoupdater.WidgetsPassword,
+		Metrics:  true}
 
 	go func() {
 		err := consumer.Subscribe(cancellable, logger, updates)
