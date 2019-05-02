@@ -68,14 +68,15 @@ func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[stri
 		return batch, err
 	}
 
-	uris := make([]string, len(batch))
+	// NOTE: adding -1 here seemed to get rid of creating
+	// extra "" entry every iteration
+	uris := make([]string, len(batch)-1)
 	for k, _ := range batch {
 		uris = append(uris, k)
 	}
 
 	logger.Printf("vivo-indexer-url:%#v", vi.Url)
 
-	// filter out "" here? how are they making it in?
 	for _, uri := range uris {
 		logger.Printf("->vivo-index:%#v\n", uri)
 	}
