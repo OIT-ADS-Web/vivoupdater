@@ -44,10 +44,7 @@ func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage) chan
 			select {
 			case u := <-updates:
 				timer.Stop()
-				// check for blank string here? seems wrong
-				if u.Triple.Subject != "" {
-					batch[u.Triple.Subject] = true
-				}
+				batch[u.Triple.Subject] = true
 				if len(batch) == ub.BatchSize {
 					batches <- batch
 					batch = make(map[string]bool, ub.BatchSize)
