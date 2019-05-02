@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/textproto"
 	"time"
-	//"github.com/pkg/errors"
 )
 
 type VivoIndexer struct {
