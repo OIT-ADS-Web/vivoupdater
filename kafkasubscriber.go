@@ -81,7 +81,6 @@ type ConsumerGroupHandler struct {
 	Context context.Context
 	Logger  *log.Logger
 	Updates chan UpdateMessage
-	//Cancel  context.CancelFunc
 }
 
 func (c ConsumerGroupHandler) Setup(sess sarama.ConsumerGroupSession) error {
@@ -159,7 +158,6 @@ func StartConsumer(ctx context.Context, ks KafkaSubscriber, handler ConsumerGrou
 	// set a max wait time??
 	//consumerConfig.Consumer.MaxWaitTime = time.Duration(305000 * time.Millisecond)
 	consumerConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
-	//consumerConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
 	client, err := sarama.NewClient(ks.Brokers, consumerConfig)
 	if err != nil {
 		handler.Logger.Fatalf("CLIENT ERROR:%v\n", err)

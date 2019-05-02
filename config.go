@@ -2,11 +2,8 @@ package vivoupdater
 
 import (
 	"errors"
-	//"flag"
 	"fmt"
 	"strings"
-	//"github.com/OIT-ADS-Web/vivoupdater/config"
-	//"github.com/OIT-ADS-Web/vivoupdater/config"
 )
 
 // stole code from here: https://godoc.org/github.com/namsral/flag
@@ -24,49 +21,6 @@ type KafkaConfig struct {
 	GroupName    string
 }
 
-// redis
-type RedisConfig struct {
-	RedisUrl           string
-	RedisChannel       string
-	MaxRedisAttempts   int
-	RedisRetryInterval int
-}
-
-// vivo
-type VivoConfig struct {
-	VivoIndexerUrl string
-	VivoEmail      string
-	VivoPassword   string
-}
-
-// widgets
-type WidgetsConfig struct {
-	WidgetsIndexerBaseUrl string
-	WidgetsUser           string
-	WidgetsPassword       string
-}
-
-// logging
-type LoggingConfig struct {
-	LogFile       string
-	LogMaxSize    int
-	LogMaxBackups int
-	LogMaxAge     int
-}
-
-type ApplicationConfig struct {
-	BatchSize         int
-	BatchTimeout      int
-	NotificationSmtp  string
-	NotificationFrom  string
-	NotificationEmail string
-	Enviroment        string
-	Kafka             KafkaConfig
-	Widgets           WidgetsConfig
-	Vivo              VivoConfig
-	Log               LoggingConfig
-}
-
 type VaultConfig struct {
 	Endpoint string
 	RoleId   string
@@ -75,13 +29,7 @@ type VaultConfig struct {
 	Token    string
 }
 
-type Kafka struct {
-	ClientKey  string `mapstructure:"kafka.clientKey"`
-	ClientCert string `mapstructure:"kafka.clientCert"`
-	ServerCert string `mapstructure:"kafka.serverCert"`
-}
 type Secrets struct {
-	//Kafka
 	KafkaClientKey  string `mapstructure:"kafka_clientKey"`
 	KafkaClientCert string `mapstructure:"kafka_clientCert"`
 	KafkaServerCert string `mapstructure:"kafka_serverCert"`
@@ -94,12 +42,6 @@ func SecretsMap(appEnv string) map[string]string {
 	secrets["kafka.serverCert"] = fmt.Sprintf("apps/scholars/%s/kafka/serverCert", appEnv)
 	return secrets
 }
-
-// redis
-var RedisUrl string
-var RedisChannel string
-var MaxRedisAttempts int
-var RedisRetryInterval int
 
 // vivo
 var VivoIndexerUrl string
@@ -115,6 +57,8 @@ var WidgetsPassword string
 var BatchSize int
 var BatchTimeout int
 var AppEnvironment string
+
+// TODO: get rid of notification values entirely?
 var NotificationSmtp string
 var NotificationFrom string
 var NotificationEmail CSV
@@ -163,34 +107,3 @@ func (c *CSV) Set(value string) error {
 	}
 	return nil
 }
-
-/*
-func Configure() ApplicationConfig {
-	var conf ApplicationConfig
-
-	bootstrapFlag := flag.Var("bootstrap_servers", "comma-separated list of kafka servers")
-	topics := flag.Var("topics", "comma-separated list of topics")
-	clientCert := flag.StringVar("client_cert", "", "client ssl cert (*.pem file location)")
-	clientKey := flag.StringVar("client_key", "", "client ssl key (*.pem file location)")
-	serverCert := flag.StringVar("server_cert", "", "server ssl cert (*.pem file location)")
-	clientId := flag.StringVar("client_id", "", "client (consumer) id to send to kafka")
-	groupName := flag.StringVar("group_name", "", "client (consumer) group name to send to kafka")
-
-	flag.Parse()
-
-	kafkaConfig := KafkaConfig{
-		BootstrapFlag: bootstrapFlag,
-		Topics:        topics,
-		ClientCert:    clientCert,
-		ClientKey:     clientKey,
-		ServerCert:    serverCert,
-		ClientId:      clientId,
-		GroupName:     groupName,
-	}
-
-	conf = ApplicationConfig{
-		Kafka: kafkaConfig,
-	}
-	return conf
-}
-*/
