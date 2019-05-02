@@ -37,7 +37,6 @@ func FetchToken(config *VaultConfig) error {
 	}
 
 	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(messageJson))
-	//fmt.Printf("%v\n", resp)
 	if err != nil {
 		return err
 	}
@@ -57,7 +56,13 @@ type VaultData struct {
 	Data map[string]string `json:"data"`
 }
 
-// this is rather convoluted
+// TODO: this is rather convoluted bdcause it matches the methodology
+// used by scholars-data-project kotlin client which maps to
+// java properties one at a time (rather than as group of key/value)
+//
+// So the SecretMap can (in theory) map a local property to a
+// completely different vault secret e.g.
+// kafka.clientKey = apps/scholars/development/kafka/anotherNameEntirely
 func FetchSecrets(config *VaultConfig, paths map[string]string,
 	obj interface{}) error {
 	client := &http.Client{}

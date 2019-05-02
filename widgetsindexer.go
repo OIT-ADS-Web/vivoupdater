@@ -67,10 +67,10 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
 	var data = url.Values{}
 	data.Set("message", string(j))
 
-	logger.Printf("%#v", wbi.Indexer.Url+wbi.Suffix)
+	logger.Printf("widgets-indexer-url:%#v", wbi.Indexer.Url+wbi.Suffix)
 
 	for _, uri := range wbi.Uris {
-		logger.Printf("widgets-index:%#v\n", uri)
+		logger.Printf("->widgets-index:%#v\n", uri)
 	}
 
 	client := &http.Client{}

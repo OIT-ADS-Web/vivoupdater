@@ -33,14 +33,10 @@ func init() {
 	flag.StringVar(&vivoupdater.MetricsTopic, "metrics_topic", "", "metrics kafka topic")
 	flag.StringVar(&vivoupdater.UpdatesTopic, "updates_topic", "", "updates kafka topic")
 
-	// FIXME: do something like this?
+	// TODO: add something like this?
 	//flag.IntVar(&config.MaxKafkaAttempts, "max_kafka_attempts", 3, "maximum number of consecutive attempts to connect to kafka before exiting")
 	//flag.IntVar(&config.KafkaRetryInterval, "kafka_retry_interval", 5, "number of seconds to wait before reconnecting to kafka, reconnects will back off at a rate of num attempts * interval")
 
-	flag.StringVar(&vivoupdater.RedisUrl, "redis_url", "localhost:6379", "host:port of the redis instance")
-	flag.StringVar(&vivoupdater.RedisChannel, "redis_channel", "development", "name of the redis channel to subscribe to")
-	flag.IntVar(&vivoupdater.MaxRedisAttempts, "max_redis_attempts", 3, "maximum number of consecutive attempts to connect to redis before exiting")
-	flag.IntVar(&vivoupdater.RedisRetryInterval, "redis_retry_interval", 5, "number of seconds to wait before reconnecting to redis, reconnects will back off at a rate of num attempts * interval")
 	flag.StringVar(&vivoupdater.VivoIndexerUrl, "vivo_indexer_url", "http://localhost:8080/searchService/updateUrisInSearch", "full url of the incremental indexing service")
 	flag.StringVar(&vivoupdater.VivoEmail, "vivo_email", "", "email address of vivo user authorized to re-index")
 	flag.StringVar(&vivoupdater.VivoPassword, "vivo_password", "", "password for vivo user authorized to re-index")

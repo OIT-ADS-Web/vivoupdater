@@ -32,8 +32,6 @@ func SetupConsumer(ks *KafkaSubscriber) error {
 func NewTLSConfig(ks *KafkaSubscriber) (*tls.Config, error) {
 	tlsConfig := tls.Config{}
 	// Load client cert
-	// NOTE: this will need to change to read text
-	//cert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
 	cert, err := tls.X509KeyPair([]byte(ks.ClientCert), []byte(ks.ClientKey))
 
 	if err != nil {
@@ -43,7 +41,6 @@ func NewTLSConfig(ks *KafkaSubscriber) (*tls.Config, error) {
 	tlsConfig.Certificates = []tls.Certificate{cert}
 
 	// Load CA cert - should get bytes from vault
-	//caCert, err := ioutil.ReadFile(caCertFile)
 	caCert := []byte(ks.ServerCert)
 
 	if err != nil {
@@ -65,57 +62,25 @@ func GetCertsFromVault(env string, config *VaultConfig, kafka *KafkaSubscriber) 
 			fmt.Printf("Unable to fetch token from vault for role_id and secret_id:\n  %s\n", err)
 		}
 	}
-	//Brokers:   servers,
-	//ClientID:  vivoupdater.ClientId,
-	//GroupName: vivoupdater.GroupName,
 
 	secrets := SecretsMap(env)
-	//fmt.Printf("Vault secrets: %s\n", secrets)
 	// NOTE: reads values 'into' a struct
 	var values Secrets
 	//NOTE: order matters, needs token
-
-	// maybe this could be a copy -> into -> method squash
-	//kafkaConfig.ClientCert = values.Kafka.ClientCert
-	//kafkaConfig.ClientKey = values.Kafka.ClientKey
-	//kafkaConfig.ServerCert = values.Kafka.ServerCert
-
-	/*
-		path := fmt.Sprintf("secret/apps/scholars/%s/kafka", env)
-		//fmt.Printf("Vault path: %s\n", path)
-		var kafka *KafkaSubscriber
-		err := FetchValues(config, path, kafka)
-	*/
-	//var kafka *KafkaSubscriber
 	err := FetchSecrets(config, secrets, &values)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	//kafka.Brokers = BootstrapFlag
-	//kafka.ClientID = ClientId
-	//kafka.GroupName = GroupName
 	kafka.ClientCert = values.KafkaClientCert
 	kafka.ClientKey = values.KafkaClientKey
 	kafka.ServerCert = values.KafkaServerCert
-
-	/*
-		if err != nil {
-			fmt.Println("Error fetching values from vault. Waiting 30 seconds before stopping.")
-			fmt.Println(err)
-			time.Sleep(time.Second * 30)
-		}
-	*/
-
-	//SetupSubscriber(kafka)
-	//SetupProducer(kafka)
 }
 
 type ConsumerGroupHandler struct {
 	Context context.Context
 	Logger  *log.Logger
 	Updates chan UpdateMessage
-	Cancel  context.CancelFunc
 }
 
 func (c ConsumerGroupHandler) Setup(sess sarama.ConsumerGroupSession) error {
@@ -132,17 +97,18 @@ func (c ConsumerGroupHandler) Cleanup(sess sarama.ConsumerGroupSession) error {
 func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 	claim sarama.ConsumerGroupClaim) error {
 
-	um := UpdateMessage{}
-
 	for {
 		select {
 		case msg := <-claim.Messages():
+			var um UpdateMessage
 			err := json.Unmarshal(msg.Value, &um)
 			if err != nil {
 				return err
 			}
-			c.Logger.Printf("uri received: %v\n", um.Triple.Subject)
+			// NOTE: could check for "" but have not seen blank ones in log
+			c.Logger.Printf("uri consumed: %v\n", um.Triple.Subject)
 			c.Updates <- um
+			// marking offset
 			sess.MarkMessage(msg, "")
 		case <-sess.Context().Done():
 			err := sess.Context().Err()
@@ -192,7 +158,6 @@ func StartConsumer(ctx context.Context, ks KafkaSubscriber, handler ConsumerGrou
 	// set a max wait time??
 	//consumerConfig.Consumer.MaxWaitTime = time.Duration(305000 * time.Millisecond)
 	consumerConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
-	//consumerConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
 	client, err := sarama.NewClient(ks.Brokers, consumerConfig)
 	if err != nil {
 		handler.Logger.Fatalf("CLIENT ERROR:%v\n", err)

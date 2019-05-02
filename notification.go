@@ -22,6 +22,7 @@ func GetNotifier() Notification {
 }
 
 func (n Notification) DoSend(desc string, err error) {
+	// TODO: maybe this should be a kakfa topic instead
 	fmt.Printf("would send notification here: %v:%v\n", desc, err)
 	if n.Smtp != "" {
 		subject := fmt.Sprintf("[VIVO Updater Error] %s", desc)

@@ -42,9 +42,16 @@ func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[stri
 		return batch, fwerr
 	}
 
+	// if there is a low-level Write error, just return?
 	for u := range batch {
-		fw.Write([]byte(u))
-		fw.Write([]byte(","))
+		_, err = fw.Write([]byte(u))
+		if err != nil {
+			return batch, err
+		}
+		_, err = fw.Write([]byte(","))
+		if err != nil {
+			return batch, err
+		}
 	}
 	w.Close()
 
@@ -66,8 +73,11 @@ func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[stri
 		uris = append(uris, k)
 	}
 
+	logger.Printf("vivo-indexer-url:%#v", vi.Url)
+
+	// filter out "" here? how are they making it in?
 	for _, uri := range uris {
-		logger.Printf("vivo-index:%#v\n", uri)
+		logger.Printf("->vivo-index:%#v\n", uri)
 	}
 
 	end := time.Now()
