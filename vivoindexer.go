@@ -78,9 +78,7 @@ func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[stri
 
 	logger.Printf("vivo-indexer-url:%#v", vi.Url)
 
-	// NOTE: adding -1 here seemed to get rid of creating
-	// extra "" entry every iteration
-	uris := make([]string, len(batch)-1)
+	var uris []string
 	for k, _ := range batch {
 		uris = append(uris, k)
 	}
@@ -100,5 +98,10 @@ func (vi VivoIndexer) Index(batch map[string]bool, logger *log.Logger) (map[stri
 		SendMetrics(metrics)
 	}
 
+	// TODO: if fail, add to a topic or even back to same topic
+	// with attempt #numbers tracked
+	// if err != nil {
+	//
+	//}
 	return batch, err
 }

@@ -89,7 +89,8 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
 	start := time.Now()
 
 	if size <= 0 {
-		err = errors.New("size of uris is <= 0")
+		// TODO: is this really an error?
+		// err = errors.New("size of uris is <= 0")
 	} else {
 		logger.Printf("widgets-indexer-url:%#v", wbi.Indexer.Url+wbi.Suffix)
 		for _, uri := range wbi.Uris {
@@ -108,11 +109,16 @@ func (wbi WidgetsBatchIndexer) IndexUris(logger *log.Logger) error {
 		Name:    "widgets",
 		Success: (err == nil)}
 
-	// NOTE: necessary just because of test
+	// NOTE: neccessary just because of test
 	if wbi.Indexer.Metrics != false {
 		SendMetrics(metrics)
 	}
 
+	// TODO: if fail, add to a topic or even back to same topic
+	// with attempt #numbers tracked
+	// if err != nil {
+	//
+	//}
 	return err
 }
 
