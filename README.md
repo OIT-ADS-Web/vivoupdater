@@ -86,19 +86,6 @@ widgets instance user
 ### WIDGETS_PASSWORD
 
 widgets instance password
-
-### NOTIFICATION_SMTP
-
-*optional* - smtp server to send emails when service goes
-down
-
-### NOTIFICATION_FROM
-
-*optional* - (unless NOTIFICATION_SMTP is present) - the [FROM] value
-
-### NOTIFICATION_TO
-
-*optional* - (unless NOTIFICATION_SMTP is present) - the [TO] value
  
 ### BOOTSTRAP_SERVERS
 

@@ -141,7 +141,8 @@ func main() {
 	err = vivoupdater.SetupProducer(kafkaConfig)
 
 	if err != nil {
-		logger.Println("could not establish a kafka async producer")
+		log.Fatal("could not establish a kafka async producer")
+		//logger.Println("could not establish a kafka async producer")
 	}
 
 	// note same subscriber we 'set' above
@@ -149,9 +150,11 @@ func main() {
 
 	updates := make(chan vivoupdater.UpdateMessage)
 
-	batches := vivoupdater.UriBatcher{
+	batcher := vivoupdater.UriBatcher{
 		BatchSize:    vivoupdater.BatchSize,
-		BatchTimeout: time.Duration(vivoupdater.BatchTimeout) * time.Second}.Batch(cancellable, updates)
+		BatchTimeout: time.Duration(vivoupdater.BatchTimeout) * time.Second}
+
+	batches := batcher.Batch(cancellable, updates, logger)
 
 	// Metrics (true|false) as config?
 	vivoIndexer := vivoupdater.VivoIndexer{
@@ -177,8 +180,6 @@ func main() {
 	}()
 
 	// main for-loop of application
-IndexerLoop:
-
 	for {
 		select {
 		case b := <-batches:
@@ -187,13 +188,8 @@ IndexerLoop:
 		case <-ctx.Done():
 			cancel() // unnecessary call?
 			logger.Printf("indexer loop closed because %v\n", ctx.Err())
-			// NOTE: trying to avoid infinite loop in updates.go
-			// (e.g. sending Notifier emails over and over)
-			// would sleep? or some kind of backoff timeout be better?
+			// TODO: would sleep? or some kind of backoff timeout be better?
 			os.Exit(1)
-			// I thought breaking here would effectively exit
-			// but it did not seem to do that
-			break IndexerLoop
 		}
 	}
 
