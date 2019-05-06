@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/DCSO/fluxline"
@@ -15,6 +16,8 @@ import (
 )
 
 var Subscriber *KafkaSubscriber
+var subscribeOnce sync.Once
+var setupOnce sync.Once
 
 func GetSubscriber() *KafkaSubscriber {
 	return Subscriber
@@ -24,8 +27,11 @@ func SetSubscriber(s *KafkaSubscriber) {
 	Subscriber = s
 }
 
+// NOTE: not sure this is necessary
 func SetupConsumer(ks *KafkaSubscriber) error {
-	SetSubscriber(ks)
+	subscribeOnce.Do(func() {
+		SetSubscriber(ks)
+	})
 	return nil
 }
 
@@ -109,6 +115,7 @@ func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 			c.Logger.Printf("uri consumed: %v\n", um.Triple.Subject)
 			c.Updates <- um
 			// marking offset
+			// TODO: should this run indexers here (before committing offset?)
 			sess.MarkMessage(msg, "")
 		case <-sess.Context().Done():
 			err := sess.Context().Err()
@@ -160,7 +167,8 @@ func StartConsumer(ctx context.Context, ks KafkaSubscriber, handler ConsumerGrou
 	consumerConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
 	client, err := sarama.NewClient(ks.Brokers, consumerConfig)
 	if err != nil {
-		handler.Logger.Fatalf("CLIENT ERROR:%v\n", err)
+		// Fatalf calls os.Exit
+		handler.Logger.Printf("CLIENT ERROR:%v\n", err)
 		return err
 	}
 	defer func() { _ = client.Close() }()
@@ -200,6 +208,7 @@ func (ks KafkaSubscriber) Subscribe(ctx context.Context,
 	return nil
 }
 
+// global object
 var producer sarama.AsyncProducer
 
 func GetProducer() sarama.AsyncProducer {
@@ -211,23 +220,31 @@ func SetProducer(p sarama.AsyncProducer) {
 }
 
 func SetupProducer(ks *KafkaSubscriber) error {
-	tlsConfig, err := NewTLSConfig(ks)
-	if err != nil {
-		return err
-	}
-	producerConfig := sarama.NewConfig()
-	producerConfig.ClientID = ks.ClientID
-	producerConfig.Version = sarama.V1_0_0_0
-	producerConfig.Net.TLS.Enable = true
-	producerConfig.Net.TLS.Config = tlsConfig
+	var setupErr error
 
-	producer, err := sarama.NewAsyncProducer(ks.Brokers, producerConfig)
-	if err != nil {
-		return err
-	}
+	setupOnce.Do(func() {
+		tlsConfig, err := NewTLSConfig(ks)
+		if err != nil {
+			//return err
+			setupErr = err
+			return
+		}
+		producerConfig := sarama.NewConfig()
+		producerConfig.ClientID = ks.ClientID
+		producerConfig.Version = sarama.V1_0_0_0
+		producerConfig.Net.TLS.Enable = true
+		producerConfig.Net.TLS.Config = tlsConfig
 
-	SetProducer(producer)
-	return nil
+		producer, err := sarama.NewAsyncProducer(ks.Brokers, producerConfig)
+		if err != nil {
+			//return err
+			setupErr = err
+			return
+		}
+		SetProducer(producer)
+	})
+	return setupErr
+	//return nil
 }
 
 func Produce(topic string, val string) {
@@ -248,21 +265,24 @@ func FluxLine(measurement string, c interface{}, tags map[string]string) (bytes.
 }
 
 type IndexMetrics struct {
-	Start time.Time
-	End   time.Time
-	Uris  []string
-	Name  string
+	Start   time.Time
+	End     time.Time
+	Uris    []string
+	Name    string
+	Success bool
 }
 
-func SendMetrics(metrics IndexMetrics, logger *log.Logger) {
+func SendMetrics(metrics IndexMetrics) {
 	rt := (metrics.End.Sub(metrics.Start).Seconds() * 1000.0)
 
 	d := struct {
 		Duration float64 `influx:"duration"`
 		Count    int64   `influx:"count"`
+		Success  bool    `influx:"success"`
 	}{
 		Duration: rt,
 		Count:    int64(len(metrics.Uris)),
+		Success:  metrics.Success,
 	}
 
 	tags := map[string]string{

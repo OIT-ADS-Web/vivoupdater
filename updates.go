@@ -2,6 +2,8 @@ package vivoupdater
 
 import (
 	"context"
+	"log"
+	"os"
 	"time"
 )
 
@@ -33,7 +35,7 @@ type UriBatcher struct {
 	BatchTimeout time.Duration
 }
 
-func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage) chan map[string]bool {
+func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage, logger *log.Logger) chan map[string]bool {
 	batches := make(chan map[string]bool)
 
 	go func() {
@@ -56,10 +58,9 @@ func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage) chan
 				}
 			case <-ctx.Done():
 				err := ctx.Err()
-				notifier := GetNotifier()
-				notifier.DoSend("vivoupdater batcher context cancelled", err)
-				// put in limit to the number of times this can happen?
-				// or sleep ??
+				logger.Printf("vivoupdater batcher context cancelled:%v\n", err)
+				// TODO: should it exit here?
+				os.Exit(1)
 			}
 		}
 	}()

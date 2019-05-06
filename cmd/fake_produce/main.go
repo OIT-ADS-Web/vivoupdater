@@ -86,18 +86,20 @@ func init() {
 	config.Version = sarama.V1_0_0_0
 }
 
-func makeFakeUri(producer sarama.SyncProducer, topic string) {
-	num := rand.Intn(9)
-	subject := fmt.Sprintf("http://scholars.duke.edu/individual/per000000%d", num)
+type ChangeNotifier struct {
+	Producer sarama.SyncProducer
+	Topic    string
+}
 
+func postUri(changeNotifier ChangeNotifier, uri string) {
 	um := vivoupdater.UpdateMessage{
 		Type:  "update",
 		Phase: "destination",
 		Name:  "urn:x-arq:UnionGraph",
 		Triple: vivoupdater.Triple{
-			Subject:   subject,
+			Subject:   uri,
 			Predicate: "rdfs:label",
-			Object:    fmt.Sprintf("Lester the Tester #%d", num)},
+			Object:    fmt.Sprintf("Specific URI test #%s", uri)},
 	}
 
 	val, err := json.Marshal(um)
@@ -107,20 +109,58 @@ func makeFakeUri(producer sarama.SyncProducer, topic string) {
 	}
 
 	msg := &sarama.ProducerMessage{
-		Topic: topic,
+		Topic: changeNotifier.Topic,
 		Value: sarama.StringEncoder(string(val))}
-	partition, offset, err := producer.SendMessage(msg)
+	partition, offset, err := changeNotifier.Producer.SendMessage(msg)
 	if err != nil {
 		log.Fatalf("%s\n", err)
 		log.Printf("FAILED to send message: %s\n", err)
 	} else {
-		log.Printf("subject=%s\n", subject)
+		log.Printf("subject=%s\n", uri)
 		log.Printf("> message sent to partition %d at offset %d\n", partition, offset)
 	}
 }
 
+func makeFakeUri(changeNotifier ChangeNotifier) {
+	num := rand.Intn(9)
+	subject := fmt.Sprintf("http://scholars.duke.edu/individual/per000000%d", num)
+
+	postUri(changeNotifier, subject)
+	/*
+		um := vivoupdater.UpdateMessage{
+			Type:  "update",
+			Phase: "destination",
+			Name:  "urn:x-arq:UnionGraph",
+			Triple: vivoupdater.Triple{
+				Subject:   subject,
+				Predicate: "rdfs:label",
+				Object:    fmt.Sprintf("Lester the Tester #%d", num)},
+		}
+
+		val, err := json.Marshal(um)
+		if err != nil {
+			log.Fatalf("%s\n", err)
+			log.Printf("FAILED to json marshal: %s\n", err)
+		}
+
+		msg := &sarama.ProducerMessage{
+			Topic: topic,
+			Value: sarama.StringEncoder(string(val))}
+		partition, offset, err := producer.SendMessage(msg)
+		if err != nil {
+			log.Fatalf("%s\n", err)
+			log.Printf("FAILED to send message: %s\n", err)
+		} else {
+			log.Printf("subject=%s\n", subject)
+			log.Printf("> message sent to partition %d at offset %d\n", partition, offset)
+		}
+	*/
+}
+
 func main() {
 	number := flag.Int("number", 1, "how many fake uris to post")
+	uri := flag.String("uri", "", "a specific uri to post")
+
 	flag.Parse()
 
 	// just making a sync producer - not using 'producer.go'
@@ -138,8 +178,16 @@ func main() {
 
 	topic := os.Getenv("UPDATES_TOPIC")
 
-	for i := 1; i <= *number; i++ {
-		makeFakeUri(producer, topic)
+	changeNotifier := ChangeNotifier{
+		Producer: producer,
+		Topic:    topic,
 	}
 
+	if uri != nil {
+		postUri(changeNotifier, *uri)
+	} else {
+		for i := 1; i <= *number; i++ {
+			makeFakeUri(changeNotifier)
+		}
+	}
 }

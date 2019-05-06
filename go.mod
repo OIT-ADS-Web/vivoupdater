@@ -12,5 +12,6 @@ require (
 	github.com/gorilla/mux v1.7.1
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/namsral/flag v0.0.0-20150804094551-881a43080604
+	github.com/pkg/errors v0.8.1
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20160125111749-514cbda263a7
 )

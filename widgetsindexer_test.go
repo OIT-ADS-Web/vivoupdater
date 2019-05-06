@@ -113,7 +113,8 @@ func TestWidgetsPost(t *testing.T) {
 	wi := vivoupdater.WidgetsIndexer{
 		Url:      ts.URL,
 		Username: "testuser",
-		Password: "testpassword"}
+		Password: "testpassword",
+		Metrics:  false}
 
 	wi.Index(b, logger)
 }
