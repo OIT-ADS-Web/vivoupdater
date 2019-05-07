@@ -2,6 +2,7 @@ package vivoupdater
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -79,6 +80,11 @@ func PostToWidgets(idx WidgetsIndexer, postUrl string, uris ...string) error {
 	if err != nil {
 		return err
 	}
+
+	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
+		return errors.New(fmt.Sprintf("widgets indexer response=%d\n", resp.StatusCode))
+	}
+
 	defer resp.Body.Close()
 	return err
 }

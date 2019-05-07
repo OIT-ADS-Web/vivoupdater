@@ -3,7 +3,6 @@ package vivoupdater
 import (
 	"context"
 	"log"
-	"os"
 	"time"
 )
 
@@ -60,7 +59,7 @@ func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage, logg
 				err := ctx.Err()
 				logger.Printf("vivoupdater batcher context cancelled:%v\n", err)
 				// TODO: should it exit here?
-				os.Exit(1)
+				// os.Exit(1)
 			}
 		}
 	}()

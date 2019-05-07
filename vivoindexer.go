@@ -2,6 +2,8 @@ package vivoupdater
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -67,6 +69,11 @@ func PostToVivo(idx VivoIndexer, batch map[string]bool) error {
 	if err != nil {
 		return err
 	}
+
+	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
+		return errors.New(fmt.Sprintf("vivo indexer response=%d\n", resp.StatusCode))
+	}
+
 	defer resp.Body.Close()
 	buf.Reset()
 	return nil

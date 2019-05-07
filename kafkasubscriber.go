@@ -111,14 +111,13 @@ func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 			if err != nil {
 				return err
 			}
-			// NOTE: could check for "" but have not seen blank ones in log
 			c.Logger.Printf("uri consumed: %v\n", um.Triple.Subject)
 			c.Updates <- um
 			// marking offset
-			// TODO: should this run indexers here (before committing offset?)
 			sess.MarkMessage(msg, "")
 		case <-sess.Context().Done():
 			err := sess.Context().Err()
+			c.Logger.Printf("consumer 'Done': %v\n", err)
 			return err
 		}
 	}
@@ -151,18 +150,20 @@ func StartConsumer(ctx context.Context, ks KafkaSubscriber, handler ConsumerGrou
 	consumerConfig.Net.TLS.Config = tlsConfig
 	consumerConfig.Consumer.Return.Errors = true
 
-	consumerConfig.Net.ReadTimeout = (10 * time.Second)
-	consumerConfig.Net.DialTimeout = (10 * time.Second)
-	consumerConfig.Net.WriteTimeout = (10 * time.Second)
+	// default is 30 seconds
+	consumerConfig.Net.ReadTimeout = (30 * time.Second)
+	consumerConfig.Net.DialTimeout = (30 * time.Second)
+	consumerConfig.Net.WriteTimeout = (30 * time.Second)
 
 	// not sure a good number of retries
 	consumerConfig.Metadata.Retry.Max = 3
 	consumerConfig.Metadata.Retry.Backoff = (10 * time.Second)
-	consumerConfig.Metadata.RefreshFrequency = (15 * time.Minute)
+	// ??? disable
+	consumerConfig.Metadata.RefreshFrequency = 0
 
 	// set rebalance timeout?  - default 60ms
-	//consumerConfig.Consumer.Group.Rebalance.Timeout = time.Duration(6000 * time.Millisecond)
-	// set a max wait time??
+	consumerConfig.Consumer.Group.Rebalance.Timeout = time.Duration(10 * time.Second)
+	// set a max wait time?? - default 250ms
 	//consumerConfig.Consumer.MaxWaitTime = time.Duration(305000 * time.Millisecond)
 	consumerConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
 	client, err := sarama.NewClient(ks.Brokers, consumerConfig)
@@ -185,6 +186,13 @@ func StartConsumer(ctx context.Context, ks KafkaSubscriber, handler ConsumerGrou
 	// CONSUME ERR:kafka server:
 	// "A rebalance for the group is in progress. Please re-join the group.
 	// Closing Client, Error while closing connection to broker i/o timeout"
+
+	// Track errors
+	go func() {
+		for err := range group.Errors() {
+			fmt.Println("ERROR", err)
+		}
+	}()
 
 	// see sarama docs of this function about rebalance, retries etc...
 	err = group.Consume(ctx, []string{ks.Topic}, handler)

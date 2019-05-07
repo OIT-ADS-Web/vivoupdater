@@ -126,36 +126,20 @@ func makeFakeUri(changeNotifier ChangeNotifier) {
 	subject := fmt.Sprintf("http://scholars.duke.edu/individual/per000000%d", num)
 
 	postUri(changeNotifier, subject)
-	/*
-		um := vivoupdater.UpdateMessage{
-			Type:  "update",
-			Phase: "destination",
-			Name:  "urn:x-arq:UnionGraph",
-			Triple: vivoupdater.Triple{
-				Subject:   subject,
-				Predicate: "rdfs:label",
-				Object:    fmt.Sprintf("Lester the Tester #%d", num)},
-		}
-
-		val, err := json.Marshal(um)
-		if err != nil {
-			log.Fatalf("%s\n", err)
-			log.Printf("FAILED to json marshal: %s\n", err)
-		}
-
-		msg := &sarama.ProducerMessage{
-			Topic: topic,
-			Value: sarama.StringEncoder(string(val))}
-		partition, offset, err := producer.SendMessage(msg)
-		if err != nil {
-			log.Fatalf("%s\n", err)
-			log.Printf("FAILED to send message: %s\n", err)
-		} else {
-			log.Printf("subject=%s\n", subject)
-			log.Printf("> message sent to partition %d at offset %d\n", partition, offset)
-		}
-	*/
 }
+
+//https://stackoverflow.com/questions/35809252/check-if-flag-was-provided-in-go
+/*
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+*/
 
 func main() {
 	number := flag.Int("number", 1, "how many fake uris to post")
@@ -183,7 +167,7 @@ func main() {
 		Topic:    topic,
 	}
 
-	if uri != nil {
+	if *uri != "" {
 		postUri(changeNotifier, *uri)
 	} else {
 		for i := 1; i <= *number; i++ {
