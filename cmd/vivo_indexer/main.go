@@ -97,8 +97,8 @@ func main() {
 
 	// TODO: not sure this is ever actually called
 	defer func() {
-		cancel() // unnecessary call?
-		if err := srv.Shutdown(ctx); err != nil {
+		cancel()
+		if err := srv.Shutdown(cancellable); err != nil {
 			logger.Fatalf("could not shutdown: %v", err)
 		}
 		logger.Println("shutting down")
@@ -108,7 +108,6 @@ func main() {
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			logger.Fatalf("could not start server: %v", err)
-			cancel() // unnecessary call?
 			os.Exit(1)
 		}
 	}()
@@ -142,7 +141,6 @@ func main() {
 
 	if err != nil {
 		log.Fatal("could not establish a kafka async producer")
-		//logger.Println("could not establish a kafka async producer")
 	}
 
 	// note same subscriber we 'set' above
@@ -174,7 +172,6 @@ func main() {
 		if err != nil {
 			// how to 're-start' here? e.g. capture rebalance
 			logger.Printf("consumer subscribe error:%v\n", err)
-			cancel() // unnecessary call?
 			os.Exit(1)
 		}
 	}()
@@ -185,9 +182,8 @@ func main() {
 		case b := <-batches:
 			go vivoupdater.IndexBatch(vivoIndexer, b, logger)
 			go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
-		case <-ctx.Done():
-			cancel() // unnecessary call?
-			logger.Printf("indexer loop closed because %v\n", ctx.Err())
+		case <-cancellable.Done():
+			logger.Printf("indexer loop closed because %v\n", cancellable.Err())
 			// TODO: would sleep? or some kind of backoff timeout be better?
 			os.Exit(1)
 		}
