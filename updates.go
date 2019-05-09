@@ -34,7 +34,8 @@ type UriBatcher struct {
 	BatchTimeout time.Duration
 }
 
-func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage, logger *log.Logger) chan map[string]bool {
+func (ub UriBatcher) Batch(ctx context.Context, logger *log.Logger,
+	updates chan UpdateMessage, quit chan bool) chan map[string]bool {
 	batches := make(chan map[string]bool)
 
 	go func() {
@@ -55,10 +56,11 @@ func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage, logg
 					batches <- batch
 					batch = make(map[string]bool, ub.BatchSize)
 				}
-			case <-ctx.Done():
-				err := ctx.Err()
-				logger.Printf("vivoupdater batcher context cancelled:%v\n", err)
+			case <-quit:
+				logger.Println("vivoupdater should quit...")
+				break
 			}
+
 		}
 	}()
 	return batches
