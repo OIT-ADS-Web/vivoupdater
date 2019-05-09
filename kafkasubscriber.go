@@ -95,6 +95,8 @@ func (c ConsumerGroupHandler) Setup(sess sarama.ConsumerGroupSession) error {
 }
 
 func (c ConsumerGroupHandler) Cleanup(sess sarama.ConsumerGroupSession) error {
+	// NOTE: when this is called - it's looking like no more communication
+	// is actually happening despite a lot of "fetching metadata for all topics"
 	c.Logger.Printf("Consumer Cleanup callback:%s\n", sess.MemberID())
 	return nil
 }
@@ -116,8 +118,13 @@ func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 			// marking offset
 			sess.MarkMessage(msg, "")
 		case <-sess.Context().Done():
+			// it looks like if this code is reached
+			// it's lost the ability to connect entirely
 			err := sess.Context().Err()
 			c.Logger.Printf("consumer 'Done': %v\n", err)
+			// I'm hoping this closes the channel and
+			// forces application to stop
+			close(c.Updates)
 			return err
 		}
 	}
@@ -187,7 +194,8 @@ func StartConsumer(ctx context.Context, ks KafkaSubscriber, handler ConsumerGrou
 	// "A rebalance for the group is in progress. Please re-join the group.
 	// Closing Client, Error while closing connection to broker i/o timeout"
 
-	// Track errors
+	// NOTE: if this code is reached it looks
+	// like the subscriber has lost all connection, so it should exit
 	go func() {
 		for err := range group.Errors() {
 			fmt.Println("ERROR", err)

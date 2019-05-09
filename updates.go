@@ -58,8 +58,6 @@ func (ub UriBatcher) Batch(ctx context.Context, updates chan UpdateMessage, logg
 			case <-ctx.Done():
 				err := ctx.Err()
 				logger.Printf("vivoupdater batcher context cancelled:%v\n", err)
-				// TODO: should it exit here?
-				// os.Exit(1)
 			}
 		}
 	}()

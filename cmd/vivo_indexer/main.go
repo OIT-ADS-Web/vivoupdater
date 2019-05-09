@@ -172,7 +172,7 @@ func main() {
 		if err != nil {
 			// how to 're-start' here? e.g. capture rebalance
 			logger.Printf("consumer subscribe error:%v\n", err)
-			os.Exit(1)
+			cancel()
 		}
 	}()
 
