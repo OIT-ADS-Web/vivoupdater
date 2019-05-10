@@ -41,6 +41,7 @@ func (ub UriBatcher) Batch(ctx context.Context, logger *log.Logger,
 	go func() {
 		batch := make(map[string]bool, ub.BatchSize)
 
+	BatchLoop:
 		for {
 			timer := time.NewTimer(ub.BatchTimeout)
 			select {
@@ -57,10 +58,9 @@ func (ub UriBatcher) Batch(ctx context.Context, logger *log.Logger,
 					batch = make(map[string]bool, ub.BatchSize)
 				}
 			case <-quit:
-				logger.Println("vivoupdater should quit...")
-				break
+				logger.Println("vivoupdater batcher received quit=true")
+				break BatchLoop
 			}
-
 		}
 	}()
 	return batches

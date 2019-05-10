@@ -177,7 +177,7 @@ func main() {
 		}
 	}()
 
-	// main for-loop of application
+MainLoop:
 	for {
 		select {
 		case b := <-batches:
@@ -186,9 +186,9 @@ func main() {
 		case <-quit:
 			logger.Println("indexer loop closing")
 			cancel()
-			// NOTE: I tried killing the wi-fi locally, and this was
-			// the only way it would shut down (cleanly)
-			os.Exit(1)
+			break MainLoop
 		}
 	}
+
+	os.Exit(1)
 }
