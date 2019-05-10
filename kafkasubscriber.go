@@ -87,6 +87,7 @@ type ConsumerGroupHandler struct {
 	Context context.Context
 	Logger  *log.Logger
 	Updates chan UpdateMessage
+	Quit    chan bool
 }
 
 func (c ConsumerGroupHandler) Setup(sess sarama.ConsumerGroupSession) error {
@@ -105,6 +106,7 @@ func (c ConsumerGroupHandler) Cleanup(sess sarama.ConsumerGroupSession) error {
 func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 	claim sarama.ConsumerGroupClaim) error {
 
+ConsumerLoop:
 	for {
 		select {
 		case msg := <-claim.Messages():
@@ -122,12 +124,14 @@ func (c ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession,
 			// it's lost the ability to connect entirely
 			err := sess.Context().Err()
 			c.Logger.Printf("consumer 'Done': %v\n", err)
-			// I'm hoping this closes the channel and
-			// forces application to stop
-			close(c.Updates)
-			return err
+			c.Quit <- true
+			break ConsumerLoop
+		case <-c.Quit:
+			break ConsumerLoop
 		}
+
 	}
+	return nil
 }
 
 type KafkaSubscriber struct {
@@ -212,10 +216,11 @@ func StartConsumer(ctx context.Context, ks KafkaSubscriber, handler ConsumerGrou
 	return nil
 }
 
+// TODO: seems like too many parameters
 func (ks KafkaSubscriber) Subscribe(ctx context.Context,
-	logger *log.Logger, updates chan UpdateMessage) error {
+	logger *log.Logger, updates chan UpdateMessage, quit chan bool) error {
 	// NOTE: need to use channel to send to batcher
-	handler := ConsumerGroupHandler{Logger: logger, Updates: updates}
+	handler := ConsumerGroupHandler{Logger: logger, Updates: updates, Quit: quit}
 	err := StartConsumer(ctx, ks, handler)
 	if err != nil {
 		logger.Printf("start-consumer error: %v\n", err)

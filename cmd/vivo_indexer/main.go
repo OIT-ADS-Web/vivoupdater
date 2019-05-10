@@ -147,12 +147,13 @@ func main() {
 	consumer := vivoupdater.GetSubscriber()
 
 	updates := make(chan vivoupdater.UpdateMessage)
+	quit := make(chan bool)
 
 	batcher := vivoupdater.UriBatcher{
 		BatchSize:    vivoupdater.BatchSize,
 		BatchTimeout: time.Duration(vivoupdater.BatchTimeout) * time.Second}
 
-	batches := batcher.Batch(cancellable, updates, logger)
+	batches := batcher.Batch(cancellable, logger, updates, quit)
 
 	// Metrics (true|false) as config?
 	vivoIndexer := vivoupdater.VivoIndexer{
@@ -168,25 +169,26 @@ func main() {
 		Metrics:  true}
 
 	go func() {
-		err := consumer.Subscribe(cancellable, logger, updates)
+		err := consumer.Subscribe(cancellable, logger, updates, quit)
 		if err != nil {
 			// how to 're-start' here? e.g. capture rebalance
 			logger.Printf("consumer subscribe error:%v\n", err)
-			cancel()
+			quit <- true
 		}
 	}()
 
-	// main for-loop of application
+MainLoop:
 	for {
 		select {
 		case b := <-batches:
 			go vivoupdater.IndexBatch(vivoIndexer, b, logger)
 			go vivoupdater.IndexBatch(widgetsIndexer, b, logger)
-		case <-cancellable.Done():
-			logger.Printf("indexer loop closed because %v\n", cancellable.Err())
-			// TODO: would sleep? or some kind of backoff timeout be better?
-			os.Exit(1)
+		case <-quit:
+			logger.Println("indexer loop closing")
+			cancel()
+			break MainLoop
 		}
 	}
 
+	os.Exit(1)
 }
