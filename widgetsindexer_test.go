@@ -3,17 +3,42 @@ package vivoupdater_test
 import (
 	"encoding/base64"
 	"encoding/json"
-	"github.com/OIT-ADS-Web/vivoupdater"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"sort"
 	"testing"
+
+	"github.com/OIT-ADS-Web/vivoupdater"
 )
 
-/*
+func TestWidgetsFilter(t *testing.T) {
+	batch := make(map[string]bool)
+	subject := "http://scholars/individual/per0000001"
 
+	batch[subject] = true
+
+	wi := vivoupdater.WidgetsIndexer{
+		Url:      "http://testdomain.com",
+		Username: "testuser",
+		Password: "testpassword"}
+
+	perRegx := regexp.MustCompile(vivoupdater.PersonFilterRegex)
+
+	widgetsPeopleIndexer := vivoupdater.NewWidgetsBatchIndexer(wi, "/people/uris", perRegx)
+
+	for u := range batch {
+		widgetsPeopleIndexer.Gather(u)
+	}
+
+	if len(widgetsPeopleIndexer.Uris) != 1 {
+		t.Error("wouldn't send URL to be indexed")
+	}
+}
+
+/*
 real world example uris:
 
 https://scholars.duke.edu/individual/per3336942
@@ -35,7 +60,6 @@ func TestWidgetsPost(t *testing.T) {
 
 	b["http://domain.com/individual/per1"] = true
 	b["http://domain.com/individual/org1"] = true
-
 
 	logger := log.New(os.Stdout, "", log.LstdFlags)
 
@@ -65,15 +89,15 @@ func TestWidgetsPost(t *testing.T) {
 		var sortUris sort.StringSlice = wum.Uris
 		sortUris.Sort()
 
-		if (sortUris[0] == "http://domain.com/individual/per1" || sortUris[0] == "http://domain.com/individual/org1" ||
-		    sortUris[0] == "http://domain.com/indivudal/gra0000001" || sortUris[0] == "http://domain.com/individual/per_addr000000") {
+		if sortUris[0] == "http://domain.com/individual/per1" || sortUris[0] == "http://domain.com/individual/org1" ||
+			sortUris[0] == "http://domain.com/indivudal/gra0000001" || sortUris[0] == "http://domain.com/individual/per_addr000000" {
 			t.Errorf("Not supposed to allow %s", sortUris)
 		}
 
 		if !((sortUris[0] == "http://scholars/individual/per0000001" && r.URL.Path == "/people/uris") ||
 			(sortUris[0] == "http://scholars/individual/org00000001" && r.URL.Path == "/organizations/uris")) ||
 			((sortUris[0] == "http://scholars/individual/pernet1" && r.URL.Path == "/people/uris") ||
-		         (sortUris[0] == "http://scholars/individual/pernet2" && r.URL.Path == "/people/uris")) {
+				(sortUris[0] == "http://scholars/individual/pernet2" && r.URL.Path == "/people/uris")) {
 
 			t.Errorf("expected http://scholars/individual/per0000001 to POST to /people/uris")
 			t.Errorf("OR expected http://scholars/individual/org00000001 to POST to /organizations/uris")
@@ -89,7 +113,8 @@ func TestWidgetsPost(t *testing.T) {
 	wi := vivoupdater.WidgetsIndexer{
 		Url:      ts.URL,
 		Username: "testuser",
-		Password: "testpassword"}
+		Password: "testpassword",
+		Metrics:  false}
 
 	wi.Index(b, logger)
 }

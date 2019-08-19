@@ -1,1 +1,9 @@
 vendor
+cmd/vivo_indexer/vivo_indexer
+cmd/fake_produce/fake_produce
+.envrc
+.tool-versions
+.env
+# putting ssl stuff in here
+ssl/*
+*.log
