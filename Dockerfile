@@ -1,4 +1,4 @@
-FROM golang:1.12.4-alpine
+FROM image-mirror-prod-registry.cloud.duke.edu/library/golang:1.12.4-alpine
 
 RUN apk update && apk add --no-cache git gcc build-base 
 
