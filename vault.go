@@ -24,8 +24,7 @@ func FetchToken(config *VaultConfig) error {
 	vaultAddress := config.Endpoint
 	roleID := config.RoleId
 	secretID := config.SecretId
-	endpoint := fmt.Sprintf("%s%s", vaultAddress, "auth/approle/login")
-
+	endpoint := fmt.Sprintf("%s/%s", vaultAddress, "v1/auth/ess-web/approle/login")
 	message := map[string]interface{}{
 		"role_id":   roleID,
 		"secret_id": secretID,
@@ -53,7 +52,12 @@ func FetchToken(config *VaultConfig) error {
 }
 
 type VaultData struct {
-	Data map[string]string `json:"data"`
+	Version Version `json:"data"`
+}
+
+type Version struct {
+	Data     map[string]interface{} `json:"data"`
+	Metadata map[string]interface{} `json:"metadata"` // NOTE: not using
 }
 
 // TODO: this is rather convoluted bdcause it matches the methodology
@@ -80,7 +84,8 @@ func FetchSecrets(config *VaultConfig, paths map[string]string,
 	gathered := make(map[string]interface{})
 
 	for base, _ := range bases {
-		url := fmt.Sprintf("%ssecret/%s", config.Endpoint, base)
+		url := fmt.Sprintf("%s/v1/ess-web/kv/data/%s", config.Endpoint, base)
+
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return err
@@ -97,10 +102,11 @@ func FetchSecrets(config *VaultConfig, paths map[string]string,
 		}
 
 		data := VaultData{}
+
 		if err = json.Unmarshal(body, &data); err != nil {
 			return err
 		} else {
-			for k, v := range data.Data {
+			for k, v := range data.Version.Data {
 				gathered[fmt.Sprintf("%s/%s", base, k)] = v
 			}
 		}
