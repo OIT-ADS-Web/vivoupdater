@@ -51,10 +51,6 @@ func FetchToken(config *VaultConfig) error {
 	return nil
 }
 
-//type VaultData struct {
-//	Data map[string]string `json:"data"`
-//}
-
 type VaultData struct {
 	Version Version `json:"data"`
 }
